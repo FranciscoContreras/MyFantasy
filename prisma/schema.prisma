@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ScoringType {
+  STANDARD
+  PPR
+  HALF_PPR
+  CUSTOM
+}
+
+enum Position {
+  QB
+  RB
+  WR
+  TE
+  FLEX
+  DST
+  K
+  IDP
+  BENCH
+}
+
+enum InjuryStatus {
+  HEALTHY
+  QUESTIONABLE
+  DOUBTFUL
+  OUT
+  IR
+}
+
+enum TradeStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  name          String?
+  image         String?
+
+  accounts            Account[]
+  sessions            Session[]
+  teams               Team[]
+  leagues             LeagueMember[]
+  commissionedLeagues League[]        @relation("LeagueCommissioner")
+  tradeHistory        TradeProposal[] @relation("TradeHistory")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @map("refreshToken")
+  access_token      String? @map("accessToken")
+  expires_at        Int?    @map("expiresAt")
+  token_type        String? @map("tokenType")
+  scope             String?
+  id_token          String? @map("idToken")
+  session_state     String? @map("sessionState")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model League {
+  id              String      @id @default(cuid())
+  name            String
+  platform        String?
+  scoringType     ScoringType @default(PPR)
+  rosterConfig    Json
+  scoringSettings Json?
+  season          Int
+  commissionerId  String?
+
+  commissioner   User?           @relation("LeagueCommissioner", fields: [commissionerId], references: [id])
+  teams          Team[]
+  leagueMembers  LeagueMember[]
+  matchups       Matchup[]
+  tradeProposals TradeProposal[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  InjuryReport InjuryReport[]
+}
+
+model LeagueMember {
+  id       String @id @default(cuid())
+  leagueId String
+  userId   String
+  role     String @default("member")
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, userId])
+}
+
+model Team {
+  id           String  @id @default(cuid())
+  leagueId     String
+  ownerId      String
+  name         String
+  abbreviation String? @db.VarChar(4)
+  avatarUrl    String?
+  winTotal     Int     @default(0)
+  lossTotal    Int     @default(0)
+  tieTotal     Int     @default(0)
+
+  league         League          @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  rosterSlots    RosterSlot[]
+  homeMatchups   Matchup[]       @relation("HomeTeam")
+  awayMatchups   Matchup[]       @relation("AwayTeam")
+  tradeOffers    TradeProposal[] @relation("TeamTradeOffers")
+  receivedTrades TradeProposal[] @relation("TeamTradeReceived")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leagueId])
+}
+
+model Player {
+  id              String        @id @default(cuid())
+  nflId           String        @unique
+  name            String
+  position        Position
+  team            String
+  byeWeek         Int?
+  age             Int?
+  injuryStatus    InjuryStatus? @default(HEALTHY)
+  depthChartOrder Int?
+
+  stats       PlayerStats[]
+  projections Projection[]
+  rosterSlots RosterSlot[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  TradeItem    TradeItem[]
+  InjuryReport InjuryReport[]
+}
+
+model PlayerStats {
+  id            Int      @id @default(autoincrement())
+  playerId      String
+  season        Int
+  week          Int?
+  opponent      String?
+  fantasyPoints Decimal? @db.Decimal(6, 2)
+  data          Json
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, season, week])
+  @@index([season, week])
+}
+
+model Projection {
+  id              Int      @id @default(autoincrement())
+  playerId        String
+  provider        String
+  season          Int
+  week            Int
+  projectedPoints Decimal  @db.Decimal(6, 2)
+  floorPoints     Decimal? @db.Decimal(6, 2)
+  ceilingPoints   Decimal? @db.Decimal(6, 2)
+  confidence      Int?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, provider, season, week])
+  @@index([season, week])
+}
+
+model Matchup {
+  id            String    @id @default(cuid())
+  leagueId      String
+  week          Int
+  homeTeamId    String
+  awayTeamId    String
+  homeScore     Decimal?  @db.Decimal(7, 2)
+  awayScore     Decimal?  @db.Decimal(7, 2)
+  scheduledDate DateTime?
+  location      String?
+
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  homeTeam Team   @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam Team   @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  @@index([leagueId, week])
+}
+
+model RosterSlot {
+  id       String   @id @default(cuid())
+  teamId   String
+  playerId String
+  slot     Position
+  season   Int
+  week     Int?
+  isBench  Boolean  @default(false)
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, playerId, season, week])
+  @@index([teamId, season])
+}
+
+model TradeProposal {
+  id              String      @id @default(cuid())
+  leagueId        String
+  proposerTeamId  String
+  recipientTeamId String
+  status          TradeStatus @default(PENDING)
+  message         String?
+  respondedAt     DateTime?
+
+  league        League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  proposer      Team         @relation("TeamTradeOffers", fields: [proposerTeamId], references: [id])
+  recipient     Team         @relation("TeamTradeReceived", fields: [recipientTeamId], references: [id])
+  items         TradeItem[]
+  auditLog      TradeAudit[]
+  ownerRecord   User?        @relation("TradeHistory", fields: [ownerRecordId], references: [id])
+  ownerRecordId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leagueId])
+}
+
+model TradeItem {
+  id         String  @id @default(cuid())
+  tradeId    String
+  fromTeamId String
+  toTeamId   String
+  playerId   String?
+  draftPick  Json?
+
+  trade  TradeProposal @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  player Player?       @relation(fields: [playerId], references: [id])
+
+  @@index([tradeId])
+}
+
+model TradeAudit {
+  id        String   @id @default(cuid())
+  tradeId   String
+  action    String
+  actorId   String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  trade TradeProposal @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model InjuryReport {
+  id          Int          @id @default(autoincrement())
+  playerId    String
+  leagueId    String?
+  status      InjuryStatus
+  designation String?
+  notes       String?
+  reportDate  DateTime
+
+  player Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  league League? @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@index([reportDate])
+}
+
+model WeatherReport {
+  id                  Int       @id @default(autoincrement())
+  gameId              String
+  week                Int
+  stadium             String?
+  temperature         Int?
+  windSpeed           Int?
+  precipitationChance Int?
+  conditions          String?
+  kickoff             DateTime?
+
+  @@unique([gameId, week])
+}
+
+model HistoricalSync {
+  id      String @id @default(cuid())
+  source  String
+  scope   String
+  status  String @default("pending")
+  payload Json?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  error      String?
+
+  @@index([source, scope])
+}

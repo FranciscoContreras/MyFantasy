@@ -1,0 +1,23 @@
+0 verbose cli /opt/homebrew/Cellar/node/24.8.0/bin/node /opt/homebrew/lib/node_modules/npm/bin/npm-cli.js
+1 info using npm@11.6.0
+2 info using node@v24.8.0
+3 silly config load:file:/opt/homebrew/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/francisco/Documents/Projects/Websites/MyFantasy/.npmrc
+5 silly config load:file:/Users/francisco/.npmrc
+6 silly config load:file:/opt/homebrew/etc/npmrc
+7 verbose title npm exec shadcn@latest add button card dialog dropdown-menu form input label navigation-menu select separator sheet skeleton switch table tabs toast tooltip avatar badge progress alert command popover scroll-area slider
+8 verbose argv "exec" "--" "shadcn@latest" "add" "button" "card" "dialog" "dropdown-menu" "form" "input" "label" "navigation-menu" "select" "separator" "sheet" "skeleton" "switch" "table" "tabs" "toast" "tooltip" "avatar" "badge" "progress" "alert" "command" "popover" "scroll-area" "slider"
+9 verbose logfile logs-max:10 dir:/Users/francisco/Documents/Projects/Websites/MyFantasy/.npm-cache/_logs/2025-09-17T21_50_02_420Z-
+10 verbose logfile /Users/francisco/Documents/Projects/Websites/MyFantasy/.npm-cache/_logs/2025-09-17T21_50_02_420Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly logfile done cleaning log files
+13 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+14 http fetch GET 200 https://registry.npmjs.org/shadcn 86ms (cache revalidated)
+15 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+16 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+17 verbose cwd /Users/francisco/Documents/Projects/Websites/MyFantasy
+18 verbose os Darwin 24.6.0
+19 verbose node v24.8.0
+20 verbose npm  v11.6.0
+21 verbose exit 1
+22 verbose code 1
