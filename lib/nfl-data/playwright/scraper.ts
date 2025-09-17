@@ -40,8 +40,8 @@ export class PlaywrightScrapingService {
       "Navigate to ESPN NFL stats page and extract player data",
       this.toCommandArgs(payload),
     )
-    const result = await this.runCommand<ScrapePlayerStatsResult>(command, options)
-    return this.normalizePlayers(result?.data?.players)
+    const result = await this.runCommand<{ players: unknown[] }>(command, options)
+    return this.normalizePlayers(result.data?.players)
   }
 
   async scrapeTeamDefense(
@@ -53,8 +53,8 @@ export class PlaywrightScrapingService {
       "Scrape defensive coordinator information from Pro Football Reference",
       this.toCommandArgs(payload),
     )
-    const result = await this.runCommand<ScrapeTeamDefenseResult>(command, options)
-    return this.normalizeTeamDefense(result?.data?.teams)
+    const result = await this.runCommand<{ teams: unknown[] }>(command, options)
+    return this.normalizeTeamDefense(result.data?.teams)
   }
 
   async scrapeSchedule(
@@ -66,8 +66,8 @@ export class PlaywrightScrapingService {
       "Navigate to ESPN NFL schedule and extract upcoming games",
       this.toCommandArgs(payload),
     )
-    const result = await this.runCommand<ScrapeScheduleResult>(command, options)
-    return this.normalizeSchedule(result?.data?.games)
+    const result = await this.runCommand<{ games: unknown[] }>(command, options)
+    return this.normalizeSchedule(result.data?.games)
   }
 
   async scrapeInjuries(
@@ -79,8 +79,8 @@ export class PlaywrightScrapingService {
       "Extract injury reports from ESPN and NFL.com",
       this.toCommandArgs(payload),
     )
-    const result = await this.runCommand<ScrapeInjuriesResult>(command, options)
-    return this.normalizeInjuries(result?.data?.injuries)
+    const result = await this.runCommand<{ injuries: unknown[] }>(command, options)
+    return this.normalizeInjuries(result.data?.injuries)
   }
 
   async scrapeWeather(
@@ -92,8 +92,8 @@ export class PlaywrightScrapingService {
       "Extract weather data from NFL.com game pages",
       this.toCommandArgs(payload),
     )
-    const result = await this.runCommand<ScrapeWeatherResult>(command, options)
-    return this.normalizeWeather(result?.data?.weather)
+    const result = await this.runCommand<{ weather: unknown[] }>(command, options)
+    return this.normalizeWeather(result.data?.weather)
   }
 
   private buildCommand(name: PlaywrightCommandName, description: string, args: Record<string, unknown>): PlaywrightCommandInput {
@@ -116,16 +116,16 @@ export class PlaywrightScrapingService {
     return { ...(payload as Record<string, unknown>) }
   }
 
-  private async runCommand<T extends PlaywrightCommandResult<unknown>>(
+  private async runCommand<TData>(
     command: PlaywrightCommandInput,
     options: ScrapeOptions,
-  ): Promise<T> {
+  ): Promise<PlaywrightCommandResult<TData>> {
     const context: PlaywrightCommandContext = {
       ...defaultContext,
       ...options.context,
     }
 
-    const result = await this.client.run<T>(command, context).catch((error) => {
+    const result = await this.client.run<TData>(command, context).catch((error) => {
       throw new NFLDataError("Playwright command failed", {
         code: "REQUEST_FAILED",
         cause: error,
