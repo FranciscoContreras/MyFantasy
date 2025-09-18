@@ -1,4 +1,4 @@
-import { chromium, type Browser } from "playwright"
+import { getChromium } from "@/lib/league-importers/universal/browser"
 
 import { CbsLeagueImporter } from "@/lib/league-importers/cbs/automation"
 import { getSampleCbsLeagueImport } from "@/lib/league-importers/cbs/sample"
@@ -48,7 +48,7 @@ export async function runUniversalImport(options: UniversalImportOptions): Promi
     credentials = await options.credentialProvider({ platform: "sleeper", fields: ["username", "password"] })
   }
 
-  let browser: Browser | null = null
+  let browser: Awaited<ReturnType<typeof cachedChromium.launch>> | null = null
   try {
     let importResult: PlatformImportResult
     let screenshots: string[] = []
@@ -58,6 +58,7 @@ export async function runUniversalImport(options: UniversalImportOptions): Promi
     }
 
     if (platform === "sleeper" || platform === "espn" || platform === "yahoo" || platform === "cbs") {
+      const chromium = await getChromium()
       browser = await chromium.launch({ headless: options.headless ?? true })
     }
 
