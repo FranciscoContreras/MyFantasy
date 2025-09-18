@@ -227,19 +227,20 @@ function normalizeCbs(result: CbsLeagueImportResult): NormalizedLeagueData {
   }
 }
 
-function fallbackResult(platform: SupportedPlatform): EspnLeagueImportResult | YahooLeagueImportResult | SleeperLeagueImportResult | CbsLeagueImportResult {
+function fallbackResult(platform: SupportedPlatform): PlatformImportResult {
   switch (platform) {
     case "espn":
-      return getSampleEspnLeagueImport()
+      return { platform: "espn", result: getSampleEspnLeagueImport() }
     case "yahoo":
-      return getSampleYahooLeagueImport()
+      return { platform: "yahoo", result: getSampleYahooLeagueImport() }
     case "sleeper":
-      return getSampleSleeperLeagueImport()
+      return { platform: "sleeper", result: getSampleSleeperLeagueImport() }
     case "cbs":
-      return getSampleCbsLeagueImport()
+      return { platform: "cbs", result: getSampleCbsLeagueImport() }
   }
 }
 
 export function normalizeSample(platform: SupportedPlatform): NormalizedLeagueData {
-  return normalizeImportResult({ platform, result: fallbackResult(platform) })
+  const fallback = fallbackResult(platform)
+  return normalizeImportResult(fallback)
 }
