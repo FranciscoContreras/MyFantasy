@@ -13,13 +13,16 @@ const SLEEPER_API_BASE = "https://api.sleeper.app/v1"
 
 export async function fetchSleeperLeague(leagueId: string): Promise<SleeperLeagueInfo> {
   const response = await fetchJson<Record<string, unknown>>(`${SLEEPER_API_BASE}/league/${leagueId}`)
+  const settings = isRecord(response.settings) ? response.settings : undefined
+  const scoringType = typeof settings?.scoring_type === "string" ? settings.scoring_type : undefined
+
   return {
     id: String(response.league_id ?? leagueId),
     name: String(response.name ?? "Sleeper League"),
     season: Number(response.season ?? new Date().getFullYear()),
     sport: String(response.sport ?? "nfl"),
     seasonType: String(response.season_type ?? "regular"),
-    scoringType: String(response.settings?.scoring_type ?? "half_ppr"),
+    scoringType: scoringType ?? "half_ppr",
     avatarUrl: response.avatar ? buildAvatarUrl(String(response.avatar)) : undefined,
     status: normalizeLeagueStatus(String(response.status ?? "in_progress")),
   }
