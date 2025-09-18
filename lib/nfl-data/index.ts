@@ -2,7 +2,6 @@ import { NFLDataError, toNFLDataError } from "@/lib/nfl-data/errors"
 import { nflDataCache } from "@/lib/nfl-data/cache"
 import { ESPNClient } from "@/lib/nfl-data/providers/espn"
 import { WeatherClient } from "@/lib/nfl-data/providers/weather"
-import { PlaywrightScrapingService } from "@/lib/nfl-data/playwright/scraper"
 import { getSamplePlayerStats } from "@/lib/nfl-data/samples/player-stats"
 import { cacheGet, cacheKey, cachePut } from "@/lib/nfl-data/cache-strategy"
 import type {
@@ -24,18 +23,16 @@ import type {
 interface NFLDataServiceOptions {
   espnClient?: ESPNClient
   weatherClient?: WeatherClient
-  scraper?: PlaywrightScrapingService
+  scraper?: never
 }
 
 export class NFLDataService {
   private readonly espn: ESPNClient
   private readonly weather: WeatherClient
-  private readonly scraper?: PlaywrightScrapingService
 
   constructor(options: NFLDataServiceOptions = {}) {
     this.espn = options.espnClient ?? new ESPNClient()
     this.weather = options.weatherClient ?? new WeatherClient()
-    this.scraper = options.scraper
   }
 
   async fetchPlayerStats(
@@ -53,21 +50,6 @@ export class NFLDataService {
       try {
         return await this.espn.getPlayerStats(params)
       } catch (error) {
-        let fallback: PlayerStat[] | null = null
-
-        if (this.scraper) {
-          try {
-            fallback = await this.scraper.scrapePlayerStats({ ...params }, { context })
-          } catch (scrapeError) {
-            this.logError("fetchPlayerStats:scraper", scrapeError, context)
-          }
-        }
-
-        if (fallback?.length) {
-          this.logError("fetchPlayerStats", error, context)
-          return fallback
-        }
-
         const sample = getSamplePlayerStats(params)
         if (sample.length) {
           if (process.env.NODE_ENV !== "test") {
@@ -98,8 +80,7 @@ export class NFLDataService {
         return await this.espn.getTeamDefense(params)
       } catch (error) {
         this.logError("fetchTeamDefense", error, context)
-        const fallback = this.scraper ? await this.scraper.scrapeTeamDefense({ ...params }, { context }) : null
-        return fallback ?? []
+        return []
       }
     })
   }
@@ -115,8 +96,7 @@ export class NFLDataService {
         return await this.espn.getSchedule(params)
       } catch (error) {
         this.logError("fetchSchedule", error, context)
-        const fallback = this.scraper ? await this.scraper.scrapeSchedule({ ...params }, { context }) : null
-        return fallback ?? []
+        return []
       }
     })
   }
@@ -137,8 +117,7 @@ export class NFLDataService {
         return await this.espn.getInjuryReports(params)
       } catch (error) {
         this.logError("fetchInjuryReports", error, context)
-        const fallback = this.scraper ? await this.scraper.scrapeInjuries({ ...params }, { context }) : null
-        return fallback ?? []
+        return []
       }
     })
   }
@@ -158,8 +137,7 @@ export class NFLDataService {
         return await this.weather.getWeather(params)
       } catch (error) {
         this.logError("fetchWeatherData", error, context)
-        const fallback = this.scraper ? await this.scraper.scrapeWeather({ ...params }, { context }) : null
-        return fallback ?? []
+        return []
       }
     })
   }
