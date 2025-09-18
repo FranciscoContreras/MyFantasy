@@ -40,7 +40,8 @@ export function WeeklyProjectionChart({ data }: WeeklyProjectionChartProps) {
             cursor={{ stroke: "rgba(79,70,229,0.25)", strokeWidth: 1 }}
             formatter={(value: number, key) => {
               if (key === "range") return []
-              return [`${value.toFixed(1)} pts`, key.charAt(0).toUpperCase() + key.slice(1)]
+              const labelKey = String(key)
+              return [`${value.toFixed(1)} pts`, labelKey.charAt(0).toUpperCase() + labelKey.slice(1)]
             }}
             labelFormatter={(label, payload) => {
               const opponent = payload?.[0]?.payload?.opponent
