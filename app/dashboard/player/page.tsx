@@ -1,13 +1,31 @@
 import Image from "next/image"
+import dynamic from "next/dynamic"
 
 import { SeasonStatsGrid } from "@/components/player/season-stats-grid"
-import { GameLogTable } from "@/components/player/game-log-table"
-import { SplitsChart } from "@/components/player/splits-chart"
-import { UpcomingSchedule } from "@/components/player/upcoming-schedule"
-import { PlayerNewsFeed } from "@/components/player/news-feed"
 import { GlassCard } from "@/components/ui/glass-card"
+import { ChartSkeleton } from "@/components/ui/chart-skeleton"
 import { getSamplePlayerDashboard } from "@/lib/analysis/player-dashboard"
 import { SwipePanels } from "@/components/ui/swipe-panels"
+
+const GameLogTable = dynamic(
+  () => import("@/components/player/game-log-table").then((mod) => mod.GameLogTable),
+  { ssr: false, loading: () => <ChartSkeleton label="Loading game log" className="h-[260px]" /> },
+)
+
+const SplitsChart = dynamic(
+  () => import("@/components/player/splits-chart").then((mod) => mod.SplitsChart),
+  { ssr: false, loading: () => <ChartSkeleton label="Loading splits" className="h-[240px]" /> },
+)
+
+const UpcomingSchedule = dynamic(
+  () => import("@/components/player/upcoming-schedule").then((mod) => mod.UpcomingSchedule),
+  { ssr: false, loading: () => <ChartSkeleton label="Building schedule" className="h-[220px]" /> },
+)
+
+const PlayerNewsFeed = dynamic(
+  () => import("@/components/player/news-feed").then((mod) => mod.PlayerNewsFeed),
+  { ssr: false, loading: () => <ChartSkeleton label="Fetching news" className="h-[220px]" /> },
+)
 
 export default async function PlayerDashboardPage() {
   const data = getSamplePlayerDashboard()
@@ -18,7 +36,14 @@ export default async function PlayerDashboardPage() {
         <div className="flex items-center gap-4">
           {data.player.avatarUrl ? (
             <div className="relative h-16 w-16 overflow-hidden rounded-full border border-white/60 shadow-lg dark:border-white/10">
-              <Image src={data.player.avatarUrl} alt={data.player.name} fill className="object-cover" />
+              <Image
+                src={data.player.avatarUrl}
+                alt={data.player.name}
+                fill
+                sizes="(max-width: 768px) 64px, 96px"
+                className="object-cover"
+                priority={false}
+              />
             </div>
           ) : null}
           <div>

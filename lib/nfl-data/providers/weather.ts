@@ -1,28 +1,17 @@
-import axios, { type AxiosInstance } from "axios"
-
 import { NFLDataError } from "@/lib/nfl-data/errors"
+import { fetchJson } from "@/lib/nfl-data/http"
 import type { FetchWeatherParams, WeatherReport } from "@/lib/nfl-data/types"
 
-interface WeatherClientOptions {
-  baseURL?: string
-}
-
 export class WeatherClient {
-  private client: AxiosInstance
-
-  constructor(options: WeatherClientOptions = {}) {
-    this.client = axios.create({
-      baseURL: options.baseURL ?? "https://site/api/weather",
-      timeout: 10_000,
-    })
-  }
+  constructor(private readonly options: { baseURL?: string; timeoutMs?: number } = {}) {}
 
   async getWeather(params: FetchWeatherParams): Promise<WeatherReport[]> {
     try {
-      const response = await this.client.get<{ items: WeatherReport[] }>("/nfl", {
+      const data = await fetchJson<{ items: WeatherReport[] }>(new URL("/nfl", this.options.baseURL ?? "https://site/api/weather"), {
         params,
+        timeoutMs: this.options.timeoutMs ?? 10_000,
       })
-      return response.data.items ?? []
+      return data.items ?? []
     } catch (error) {
       throw new NFLDataError("Failed to fetch weather data", {
         code: "REQUEST_FAILED",

@@ -4,6 +4,10 @@ import { detectPlatform } from "@/lib/league-importers/universal/detect"
 import { normalizeSample } from "@/lib/league-importers/universal/handler"
 import type { SupportedPlatform } from "@/lib/league-importers/universal/types"
 
+const cacheHeaders = {
+  "Cache-Control": "s-maxage=300, stale-while-revalidate=120",
+}
+
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     source?: string
@@ -15,12 +19,15 @@ export async function POST(request: Request) {
       {
         error: "Missing source or platform",
       },
-      { status: 400 },
+      { status: 400, headers: cacheHeaders },
     )
   }
 
   const detection = body.platform ? { platform: body.platform, confidence: 1 } : detectPlatform(body.source ?? "")
   const normalized = normalizeSample(detection.platform)
 
-  return NextResponse.json({ detection, normalized, note: "Placeholder response; wire up runUniversalImport for real data." })
+  return NextResponse.json(
+    { detection, normalized, note: "Placeholder response; wire up runUniversalImport for real data." },
+    { headers: cacheHeaders },
+  )
 }

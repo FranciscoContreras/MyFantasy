@@ -1,11 +1,34 @@
-import { SeasonTrendChart } from "@/components/performance/season-trend-chart"
-import { PointsDistributionChart } from "@/components/performance/points-distribution-chart"
-import { MatchupHistoryChart } from "@/components/performance/matchup-history-chart"
-import { PositionPerformanceChart } from "@/components/performance/position-performance-chart"
-import { TeamComparisonRadar } from "@/components/performance/team-comparison-radar"
+import dynamic from "next/dynamic"
+
 import { GlassCard } from "@/components/ui/glass-card"
 import { SwipePanels } from "@/components/ui/swipe-panels"
+import { ChartSkeleton } from "@/components/ui/chart-skeleton"
 import { getSamplePerformanceDashboard } from "@/lib/analysis/performance-dashboard"
+
+const SeasonTrendChart = dynamic(
+  () => import("@/components/performance/season-trend-chart").then((mod) => mod.SeasonTrendChart),
+  { ssr: false, loading: () => <ChartSkeleton label="Loading season trends" /> },
+)
+
+const PointsDistributionChart = dynamic(
+  () => import("@/components/performance/points-distribution-chart").then((mod) => mod.PointsDistributionChart),
+  { ssr: false, loading: () => <ChartSkeleton label="Preparing points distribution" /> },
+)
+
+const MatchupHistoryChart = dynamic(
+  () => import("@/components/performance/matchup-history-chart").then((mod) => mod.MatchupHistoryChart),
+  { ssr: false, loading: () => <ChartSkeleton label="Fetching matchup history" className="h-[280px]" /> },
+)
+
+const PositionPerformanceChart = dynamic(
+  () => import("@/components/performance/position-performance-chart").then((mod) => mod.PositionPerformanceChart),
+  { ssr: false, loading: () => <ChartSkeleton label="Loading position metrics" className="h-[280px]" /> },
+)
+
+const TeamComparisonRadar = dynamic(
+  () => import("@/components/performance/team-comparison-radar").then((mod) => mod.TeamComparisonRadar),
+  { ssr: false, loading: () => <ChartSkeleton label="Comparing teams" className="h-[320px]" /> },
+)
 
 export default async function PerformanceDashboardPage() {
   const data = getSamplePerformanceDashboard()

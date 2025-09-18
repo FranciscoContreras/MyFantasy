@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 })
     }
 
-    const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } })
+    const existing = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } })
     if (existing) {
       return NextResponse.json({ error: "Email already in use" }, { status: 409 })
     }
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
         name: parsed.data.name,
         passwordHash,
       },
+      select: { id: true },
     })
 
     return NextResponse.json({ success: true }, { status: 201 })

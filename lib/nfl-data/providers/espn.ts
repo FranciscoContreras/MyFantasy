@@ -1,7 +1,6 @@
-import axios from "axios"
-
 import { buildScoreboardUrl, buildTeamUrl } from "@/lib/nfl-data/endpoints"
 import { NFLDataError } from "@/lib/nfl-data/errors"
+import { fetchJson } from "@/lib/nfl-data/http"
 import type {
   FetchInjuryReportParams,
   FetchPlayerStatsParams,
@@ -140,8 +139,8 @@ export class ESPNClient {
 
       const requests = playerIds.map(async (playerId) => {
         const url = `${PLAYER_STATS_URL}/${playerId}`
-        const response = await axios.get(url, {
-          timeout: this.timeout,
+        const data = await fetchJson<RawAthleteResponse>(url, {
+          timeoutMs: this.timeout,
           params: {
             season,
             region: "us",
@@ -149,7 +148,7 @@ export class ESPNClient {
           },
         })
 
-        return this.mapAthleteToPlayerStat(response.data as RawAthleteResponse, season, week)
+        return this.mapAthleteToPlayerStat(data, season, week)
       })
 
       const stats = await Promise.all(requests)
@@ -165,15 +164,15 @@ export class ESPNClient {
 
   async getTeamDefense(params: FetchTeamDefenseParams): Promise<TeamDefenseStat[]> {
     try {
-      const response = await axios.get(TEAMS_URL, {
-        timeout: this.timeout,
+      const data = await fetchJson<{ sports?: Array<{ leagues?: Array<{ teams?: RawTeamEntry[] }> }> }>(TEAMS_URL, {
+        timeoutMs: this.timeout,
         params: {
           lang: "en",
           region: "us",
         },
       })
 
-      const teams = (response.data?.sports?.[0]?.leagues?.[0]?.teams ?? []) as RawTeamEntry[]
+      const teams = (data?.sports?.[0]?.leagues?.[0]?.teams ?? []) as RawTeamEntry[]
 
       return teams
         .map((entry) => this.mapTeamToDefense(entry?.team, params.season, params.week))
@@ -189,13 +188,13 @@ export class ESPNClient {
 
   async getSchedule(params: FetchScheduleParams): Promise<GameSchedule[]> {
     try {
-      const response = await axios.get(
+      const data = await fetchJson<{ events?: RawScoreboardEvent[] }>(
         buildScoreboardUrl({
           season: params.season,
           week: params.week,
         }),
         {
-          timeout: this.timeout,
+          timeoutMs: this.timeout,
           params: {
             lang: "en",
             region: "us",
@@ -203,7 +202,7 @@ export class ESPNClient {
         },
       )
 
-      const events = (response.data?.events ?? []) as RawScoreboardEvent[]
+      const events = data?.events ?? []
       return events.map((event) => this.mapEventToSchedule(event, params.season))
     } catch (error) {
       throw new NFLDataError("Failed to fetch schedule", {
@@ -216,15 +215,15 @@ export class ESPNClient {
 
   async getInjuryReports(params: FetchInjuryReportParams): Promise<InjuryReport[]> {
     try {
-      const response = await axios.get(NEWS_URL, {
-        timeout: this.timeout,
+      const data = await fetchJson<{ articles?: RawNewsArticle[] }>(NEWS_URL, {
+        timeoutMs: this.timeout,
         params: {
           lang: "en",
           region: "us",
         },
       })
 
-      const articles = (response.data?.articles ?? []) as RawNewsArticle[]
+      const articles = data?.articles ?? []
       return this.mapNewsToInjuries(articles, params)
     } catch (error) {
       throw new NFLDataError("Failed to fetch injury reports", {
