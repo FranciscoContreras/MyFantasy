@@ -48,6 +48,7 @@ export function PWAProvider() {
         },
         cancel: {
           label: "Later",
+          onClick: () => {},
         },
       })
     }
@@ -81,6 +82,7 @@ export function PWAProvider() {
         },
         cancel: {
           label: "Not now",
+          onClick: () => {},
         },
         duration: 8000,
       })
