@@ -61,7 +61,14 @@ function renderCard(rec: StartSitRecommendation) {
           </div>
           <Progress value={Math.min(rec.projectedPoints, 180)} className="h-2" />
         </div>
-        <p className="text-sm text-slate-600 dark:text-slate-300">{rec.reasoning}</p>
+        <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+          <p>{rec.reasoning}</p>
+          {rec.insight ? (
+            <div className="rounded-[14px] border border-indigo-100 bg-indigo-50/80 px-3 py-2 text-indigo-700 shadow-sm dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+              {rec.insight}
+            </div>
+          ) : null}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {rec.alternatives.map((alt) => (
             <div
@@ -75,7 +82,10 @@ function renderCard(rec: StartSitRecommendation) {
                 </Badge>
               </div>
               <p className="mt-1 text-xs uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">{alt.position} • {alt.team}</p>
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Delta vs current {alt.delta.toFixed(1)} pts</p>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>Delta vs current {alt.delta.toFixed(1)} pts</span>
+                <span className="font-medium text-slate-700 dark:text-slate-200">{alt.confidence}%</span>
+              </div>
             </div>
           ))}
         </div>

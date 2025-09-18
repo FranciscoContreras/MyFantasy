@@ -97,7 +97,8 @@ export class StartSitRecommendationEngine {
       }
     }
 
-    const sorted = recommendations.sort((a, b) => b.delta - a.delta)
+    const filtered = this.applyConfidenceThreshold(recommendations, request.confidenceThreshold)
+    const sorted = filtered.sort((a, b) => b.delta - a.delta)
     const limited = request.maxRecommendations ? sorted.slice(0, request.maxRecommendations) : sorted
 
     return {
@@ -109,26 +110,24 @@ export class StartSitRecommendationEngine {
   }
 
   private async buildPredictions(request: StartSitRequest): Promise<PlayerPredictionSummary[]> {
-    const results: PlayerPredictionSummary[] = []
+    return Promise.all(
+      request.roster.map(async (player) => {
+        const analysis = await this.resolveAnalysis(player, request)
+        const factors = this.resolveFactors(player, analysis)
+        const prediction = await this.predictionEngine.predict({
+          playerId: player.id,
+          season: request.season,
+          week: request.week,
+          baselineProjection: player.baselineProjection,
+          factors,
+          analysis: analysis ?? undefined,
+          position: player.position,
+          matchup: player.matchup,
+        })
 
-    for (const player of request.roster) {
-      const analysis = await this.resolveAnalysis(player, request)
-      const factors = this.resolveFactors(player, analysis)
-      const prediction = await this.predictionEngine.predict({
-        playerId: player.id,
-        season: request.season,
-        week: request.week,
-        baselineProjection: player.baselineProjection,
-        factors,
-        analysis: analysis ?? undefined,
-        position: player.position,
-        matchup: player.matchup,
-      })
-
-      results.push({ player, analysis, prediction })
-    }
-
-    return results
+        return { player, analysis, prediction }
+      }),
+    )
   }
 
   private async resolveAnalysis(player: StartSitPlayerInput, request: StartSitRequest) {
@@ -256,5 +255,14 @@ export class StartSitRecommendationEngine {
         .map((entry) => ({ week: entry.week, success: entry.success }))
         .reverse(),
     }
+  }
+
+  private applyConfidenceThreshold(recommendations: StartSitRecommendation[], threshold?: number) {
+    if (threshold === undefined) {
+      return recommendations
+    }
+
+    const normalizedThreshold = Math.max(0, Math.min(100, threshold))
+    return recommendations.filter((rec) => rec.confidence >= normalizedThreshold)
   }
 }

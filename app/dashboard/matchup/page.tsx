@@ -63,14 +63,16 @@ const battles = [
     advantageValue: 78,
     matchupNote: "Jefferson wins 64% of contested targets; Lions zone gives 2.4 explosive plays per game.",
     projection: { player: 22.4, opponent: 13.1 },
+    phase: "offense" as const,
   },
   {
     player: "Christian McCaffrey",
     opponent: "Bobby Wagner",
     advantageLabel: "RB receiving",
     advantageValue: 69,
-    matchupNote: "Wagner allows 1.63 Yards per cover snap; McCaffrey averages 7.1 targets in two-high looks.",
+    matchupNote: "Wagner allows 1.63 yards per cover snap; McCaffrey averages 7.1 targets in two-high looks.",
     projection: { player: 24.8, opponent: 16.9 },
+    phase: "offense" as const,
   },
   {
     player: "Brandon Aiyuk",
@@ -79,6 +81,7 @@ const battles = [
     advantageValue: 58,
     matchupNote: "Aiyuk ranks top-10 in DVOE on digs; Woolen concedes 0.43 EPA per target inside 15 yards.",
     projection: { player: 17.3, opponent: 14.2 },
+    phase: "defense" as const,
   },
   {
     player: "George Kittle",
@@ -87,6 +90,16 @@ const battles = [
     advantageValue: 64,
     matchupNote: "Seattle's seam coverage yields 78% catch rate; Kittle leads league in seam YAC.",
     projection: { player: 16.5, opponent: 12.7 },
+    phase: "defense" as const,
+  },
+  {
+    player: "Jordan Addison",
+    opponent: "Brian Branch",
+    advantageLabel: "Slot leverage",
+    advantageValue: 55,
+    matchupNote: "Branch plays press on 68% of slot snaps; Addison gains separation with speed outs and choice routes.",
+    projection: { player: 15.2, opponent: 13.4 },
+    phase: "neutral" as const,
   },
 ]
 
@@ -117,7 +130,9 @@ export default function MatchupAnalyzerPage() {
       />
       <GlassCard tone="muted" className="space-y-4">
         <GlassCard.Header>
-          <GlassCard.Title className="text-lg font-semibold text-slate-900 dark:text-white">Coordinator tendencies</GlassCard.Title>
+          <GlassCard.Title className="text-lg font-semibold text-slate-900 dark:text-white">
+            Coordinator tendencies
+          </GlassCard.Title>
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Offensive pace projections, red-zone splits, and blitz adjustments ready for optimizer sync.
           </p>
