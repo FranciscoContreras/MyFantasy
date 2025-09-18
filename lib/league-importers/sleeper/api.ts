@@ -55,20 +55,38 @@ export async function fetchSleeperPlayers(playerIds: string[]): Promise<SleeperP
   }
   const uniqueIds = Array.from(new Set(playerIds))
   const response = await fetchJson<Record<string, Record<string, unknown>>>("https://sleepercdn.com/content/nfl/players_full.json")
-  return uniqueIds
-    .map((id) => {
-      const player = response[id]
-      if (!player) return null
-      return {
-        playerId: id,
-        fullName: String(player.full_name ?? player.last_name ?? id),
-        position: String(player.position ?? ""),
-        team: String(player.team ?? player.fantasy_positions?.[0] ?? ""),
-        age: player.age ? Number(player.age) : undefined,
-        status: typeof player.status === "string" ? player.status : undefined,
-      }
+  const players: SleeperPlayerMetadata[] = []
+
+  for (const id of uniqueIds) {
+    const player = response[id]
+    if (!isRecord(player)) {
+      continue
+    }
+
+    const fantasyPositions = Array.isArray(player.fantasy_positions)
+      ? player.fantasy_positions.map(String)
+      : []
+    const resolvedPosition = typeof player.position === "string" && player.position.length
+      ? player.position
+      : fantasyPositions[0] ?? ""
+
+    const rawTeam = typeof player.team === "string" ? player.team : undefined
+    const resolvedTeam = rawTeam && rawTeam.length ? rawTeam : fantasyPositions[0] ?? ""
+
+    const rawAge = typeof player.age === "number" ? player.age : Number(player.age)
+    const age = Number.isFinite(rawAge) ? rawAge : undefined
+
+    players.push({
+      playerId: id,
+      fullName: String(player.full_name ?? player.last_name ?? id),
+      position: resolvedPosition,
+      team: resolvedTeam,
+      age,
+      status: typeof player.status === "string" ? player.status : undefined,
     })
-    .filter((player): player is SleeperPlayerMetadata => Boolean(player))
+  }
+
+  return players
 }
 
 export async function fetchSleeperTransactions(leagueId: string, limit = 25): Promise<SleeperTransactionEntry[]> {
