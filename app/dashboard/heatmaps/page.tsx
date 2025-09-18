@@ -1,14 +1,7 @@
-import dynamic from "next/dynamic"
-
+import { HeatmapGrid } from "@/components/heatmaps/heatmap-grid"
 import { GlassCard } from "@/components/ui/glass-card"
 import { SwipePanels } from "@/components/ui/swipe-panels"
-import { ChartSkeleton } from "@/components/ui/chart-skeleton"
 import { getSampleHeatmapDashboard } from "@/lib/analysis/heatmap-dashboard"
-
-const HeatmapGrid = dynamic(
-  () => import("@/components/heatmaps/heatmap-grid").then((mod) => mod.HeatmapGrid),
-  { ssr: false, loading: () => <ChartSkeleton label="Rendering heatmap" className="h-[320px]" /> },
-)
 
 export default async function HeatmapDashboardPage() {
   const data = getSampleHeatmapDashboard()
