@@ -249,7 +249,7 @@ export class ESPNClient {
 
     return {
       playerId: String(athlete.id),
-      name: athlete.displayName,
+      name: athlete.displayName ?? athlete.fullName ?? "Unknown Player",
       team: athlete.team?.abbreviation ?? "",
       position: athlete.position?.abbreviation ?? athlete.position?.name ?? "",
       season,
