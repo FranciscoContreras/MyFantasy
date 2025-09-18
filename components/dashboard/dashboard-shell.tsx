@@ -27,7 +27,7 @@ const navItems = [
 
 export function DashboardShell({ title, description, children }: DashboardShellProps) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:px-10 lg:flex-row lg:py-16">
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 pt-10 pb-28 sm:px-10 lg:flex-row lg:pb-16 lg:pt-16">
       <aside className="hidden w-[240px] flex-shrink-0 lg:block">
         <div className="sticky top-10 space-y-8">
           <Link href="/dashboard" className="block text-lg font-semibold text-slate-900 dark:text-white">
@@ -63,6 +63,7 @@ export function DashboardShell({ title, description, children }: DashboardShellP
         )}
         <main className="flex-1 space-y-8 pb-12">{children}</main>
       </div>
+      <MobileBottomNav />
     </div>
   )
 }
@@ -106,7 +107,11 @@ function MobileHeader() {
       </div>
       <div className="flex items-center gap-3">
         <ThemeToggle className="rounded-full border border-white/70 bg-white/90 shadow-sm dark:border-white/10 dark:bg-slate-900/60" />
-        <Button variant="ghost" size="icon" className="rounded-full border border-white/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-12 w-12 rounded-full border border-white/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/60"
+        >
           <LogOut className="h-4 w-4" />
         </Button>
       </div>
@@ -118,7 +123,11 @@ function MobileNav() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full border border-white/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-12 w-12 rounded-full border border-white/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/60"
+        >
           <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
@@ -159,6 +168,43 @@ function MobileNavItem({ item }: { item: NavItem }) {
     >
       <Icon className="h-4 w-4" />
       {item.label}
+    </Link>
+  )
+}
+
+function MobileBottomNav() {
+  const pathname = usePathname()
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center lg:hidden">
+      <nav
+        className="pointer-events-auto flex w-[min(460px,calc(100%-2rem))] items-center gap-1 rounded-3xl border border-white/60 bg-white/90 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80"
+        style={{ paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` }}
+        aria-label="Dashboard navigation"
+      >
+        {navItems.map((item) => (
+          <MobileBottomNavItem key={item.href} item={item} active={pathname === item.href} />
+        ))}
+      </nav>
+    </div>
+  )
+}
+
+function MobileBottomNavItem({ item, active }: { item: NavItem; active: boolean }) {
+  const Icon = item.icon
+
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium tracking-tight transition-colors",
+        active
+          ? "bg-indigo-100/80 text-indigo-700 shadow-[0_12px_24px_rgba(79,70,229,0.22)] dark:bg-indigo-500/15 dark:text-indigo-200"
+          : "text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white",
+      )}
+    >
+      <Icon className="h-5 w-5" aria-hidden="true" />
+      <span>{item.label}</span>
     </Link>
   )
 }

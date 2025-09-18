@@ -3,6 +3,7 @@ import { nflDataCache } from "@/lib/nfl-data/cache"
 import { ESPNClient } from "@/lib/nfl-data/providers/espn"
 import { WeatherClient } from "@/lib/nfl-data/providers/weather"
 import { PlaywrightScrapingService } from "@/lib/nfl-data/playwright/scraper"
+import { getSamplePlayerStats } from "@/lib/nfl-data/samples/player-stats"
 import { cacheGet, cacheKey, cachePut } from "@/lib/nfl-data/cache-strategy"
 import type {
   DataFetchContext,
@@ -52,9 +53,36 @@ export class NFLDataService {
       try {
         return await this.espn.getPlayerStats(params)
       } catch (error) {
+        let fallback: PlayerStat[] | null = null
+
+        if (this.scraper) {
+          try {
+            fallback = await this.scraper.scrapePlayerStats({ ...params }, { context })
+          } catch (scrapeError) {
+            this.logError("fetchPlayerStats:scraper", scrapeError, context)
+          }
+        }
+
+        if (fallback?.length) {
+          this.logError("fetchPlayerStats", error, context)
+          return fallback
+        }
+
+        const sample = getSamplePlayerStats(params)
+        if (sample.length) {
+          if (process.env.NODE_ENV !== "test") {
+            console.warn(`[NFLDataService:fetchPlayerStats] using sample fallback`, {
+              requestId: context.requestId,
+              reason: context.reason,
+              playerIds: params.playerIds,
+              cause: this.formatErrorCause(error),
+            })
+          }
+          return sample
+        }
+
         this.logError("fetchPlayerStats", error, context)
-        const fallback = this.scraper ? await this.scraper.scrapePlayerStats({ ...params }, { context }) : null
-        return fallback ?? []
+        return []
       }
     })
   }
@@ -202,6 +230,32 @@ export class NFLDataService {
       }
     }
     return result
+  }
+
+  private formatErrorCause(error: unknown): string {
+    if (error instanceof NFLDataError) {
+      if (error.cause instanceof Error) {
+        return error.cause.message
+      }
+      if (typeof error.cause === "string") {
+        return error.cause
+      }
+      return error.message
+    }
+
+    if (error instanceof Error) {
+      return error.message
+    }
+
+    if (typeof error === "string") {
+      return error
+    }
+
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return "Unknown error"
+    }
   }
 
   private logError(scope: string, error: unknown, context: DataFetchContext) {

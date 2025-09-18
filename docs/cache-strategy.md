@@ -38,3 +38,7 @@ REDIS_TLS_URL="rediss://..."
 ```
 
 Run-time logging will surface cache misses or Redis failures prefixed with `NFLDataService:cache` so we can monitor behaviour.
+
+## Offline Fallbacks
+
+When upstream providers are unreachable (common during local development with network sandboxing), `NFLDataService.fetchPlayerStats` now falls back to curated sample payloads defined in `lib/nfl-data/samples/player-stats.ts`. The fallback is logged with a warning instead of an error so dashboards such as the landing spotlight render without noisy stack traces. Downstream consumers can still differentiate the records via `source: "sample"` and decide whether to surface them in the UI.

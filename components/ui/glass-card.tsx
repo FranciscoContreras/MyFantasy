@@ -18,8 +18,8 @@ const toneMap: Record<GlassTone, string> = {
 }
 
 const sizeMap: Record<GlassSize, string> = {
-  base: "p-6 md:p-8",
-  compact: "p-5",
+  base: "p-5 sm:p-6 md:p-8",
+  compact: "p-4 sm:p-5",
 }
 
 const GlassCardRoot = React.forwardRef<HTMLDivElement, GlassCardRootProps>(

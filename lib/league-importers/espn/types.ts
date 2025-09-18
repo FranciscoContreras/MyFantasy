@@ -24,6 +24,8 @@ export interface EspnTeamInfo {
     ties: number
   }
   projectedRank?: number
+  pointsFor?: number
+  pointsAgainst?: number
 }
 
 export interface EspnPlayerEntry {
@@ -76,5 +78,108 @@ export interface EspnLeagueImportResult {
   rosters: EspnRosterSnapshot[]
   scoring: EspnScoringSettings
   transactions: EspnTransactionEntry[]
+  standings: EspnStandingEntry[]
   raw?: Record<string, unknown>
+}
+
+export interface EspnStandingEntry {
+  teamId: string
+  wins: number
+  losses: number
+  ties: number
+  winPct: number
+  pointsFor?: number
+  streak?: string
+}
+
+export interface EspnLeagueApiResponse {
+  id: number
+  seasonId: number
+  scoringPeriodId: number
+  status?: {
+    currentMatchupPeriod?: number
+  }
+  settings?: {
+    name?: string
+    scoringSettings?: {
+      matchupTieRule?: number
+      scoringItems?: EspnScoringItemApi[]
+    }
+    draftSettings?: {
+      type?: string
+    }
+    rosterSettings?: {
+      lineupSlots?: EspnRosterSlotApi[]
+      lineupSlotCounts?: Array<unknown>
+    }
+    scheduleSettings?: {
+      playoffMatchupPeriodIds?: number[]
+    }
+    tradeSettings?: {
+      deadlineDate?: string
+    }
+    acquisitionSettings?: {
+      faabBudget?: number
+    }
+  }
+  teams?: EspnTeamApi[]
+  transactions?: EspnTransactionApi[]
+}
+
+export interface EspnTeamApi {
+  id?: number
+  nickname?: string
+  location?: string
+  abbrev?: string
+  owners?: string[]
+  logo?: string
+  playoffSeed?: number
+  record?: {
+    overall?: {
+      wins?: number
+      losses?: number
+      ties?: number
+    }
+  }
+  roster?: {
+    entries?: EspnRosterEntryApi[]
+  }
+}
+
+export interface EspnRosterEntryApi {
+  playerId?: number
+  lineupSlotId?: string
+  playerPoolEntry?: {
+    player?: {
+      fullName?: string
+      defaultPositionId?: string
+      proTeamAbbreviation?: string
+      injuryStatus?: string
+      acquisitionType?: string
+      stats?: Array<{ appliedTotal?: number }>
+      ownership?: {
+        percentOwned?: number
+      }
+    }
+    appliedStatTotal?: number
+  }
+}
+
+export interface EspnScoringItemApi {
+  statId?: number
+  statName?: string
+  points?: number
+}
+
+export interface EspnRosterSlotApi {
+  slotCategoryId?: string
+  count?: number
+}
+
+export interface EspnTransactionApi {
+  id?: number
+  type?: string
+  processDate?: number
+  messages?: Array<{ text?: string }>
+  teams?: Array<{ teamId?: number }>
 }
