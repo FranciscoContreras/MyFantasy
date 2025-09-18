@@ -1,24 +1,17 @@
-import { getChromium } from "@/lib/league-importers/universal/browser"
-
-import { CbsLeagueImporter } from "@/lib/league-importers/cbs/automation"
 import { getSampleCbsLeagueImport } from "@/lib/league-importers/cbs/sample"
 import type { CbsLeagueImportResult } from "@/lib/league-importers/cbs/types"
-import { EspnLeagueImporter } from "@/lib/league-importers/espn/automation"
 import { getSampleEspnLeagueImport } from "@/lib/league-importers/espn/sample"
 import type { EspnLeagueImportResult } from "@/lib/league-importers/espn/types"
-import { SleeperLeagueImporter } from "@/lib/league-importers/sleeper/automation"
 import { getSampleSleeperLeagueImport } from "@/lib/league-importers/sleeper/sample"
 import type { SleeperLeagueImportResult } from "@/lib/league-importers/sleeper/types"
-import { YahooLeagueImporter } from "@/lib/league-importers/yahoo/automation"
 import { getSampleYahooLeagueImport } from "@/lib/league-importers/yahoo/sample"
 import type { YahooLeagueImportResult } from "@/lib/league-importers/yahoo/types"
 import { detectPlatform } from "@/lib/league-importers/universal/detect"
 import type {
-  ImportCredentials,
   NormalizedLeagueData,
-  PlatformImportResult,
   UniversalImportOptions,
   SupportedPlatform,
+  PlatformImportResult,
 } from "@/lib/league-importers/universal/types"
 
 export async function runUniversalImport(options: UniversalImportOptions): Promise<NormalizedLeagueData> {
@@ -28,130 +21,10 @@ export async function runUniversalImport(options: UniversalImportOptions): Promi
 
   const platform = detection.platform
   options.onProgress?.({ platform, step: "detect", message: detection.details, progress: 0.1 })
-
-  const needsCredentials = platform === "espn" || platform === "yahoo" || platform === "cbs"
-
-  let credentials: ImportCredentials | undefined = options.credentials?.[platform]
-
-  if (needsCredentials && !credentials) {
-    if (!options.credentialProvider) {
-      throw new Error(`Credential provider required for ${platform.toUpperCase()} imports`)
-    }
-    options.onProgress?.({ platform, step: "credentials", message: "Requesting credentials", progress: 0.2 })
-    credentials = await options.credentialProvider({ platform, fields: ["username", "password"] })
-    if (!credentials.username || !credentials.password) {
-      throw new Error(`Missing credentials for ${platform.toUpperCase()} import`)
-    }
-  }
-
-  if (platform === "sleeper" && !credentials && options.credentialProvider) {
-    credentials = await options.credentialProvider({ platform: "sleeper", fields: ["username", "password"] })
-  }
-
-  let browser: Awaited<ReturnType<typeof cachedChromium.launch>> | null = null
-  try {
-    let importResult: PlatformImportResult
-    let screenshots: string[] = []
-
-    if (platform === "sleeper" && !options.screenshots) {
-      // Sleeper without screenshots can use API-only path inside the importer
-    }
-
-    if (platform === "sleeper" || platform === "espn" || platform === "yahoo" || platform === "cbs") {
-      const chromium = await getChromium()
-      browser = await chromium.launch({ headless: options.headless ?? true })
-    }
-
-    options.onProgress?.({ platform, step: "authenticate", message: "Starting platform importer", progress: 0.35 })
-
-    switch (platform) {
-      case "espn": {
-        const page = await browser!.newPage()
-        const importer = new EspnLeagueImporter({
-          leagueId: extractEspnLeagueId(options.source),
-          season: extractSeason(options.source),
-          username: credentials!.username,
-          password: credentials!.password,
-          screenshotPath: options.screenshots?.dashboard,
-        })
-        const result: EspnLeagueImportResult = await importer.run(page)
-        screenshots = filterStrings([options.screenshots?.dashboard])
-        importResult = { platform: "espn", result }
-        break
-      }
-      case "yahoo": {
-        const page = await browser!.newPage()
-        const importer = new YahooLeagueImporter({
-          leagueKey: extractYahooLeagueKey(options.source),
-          leagueUrl: options.source.includes("http") ? options.source : undefined,
-          username: credentials!.username,
-          password: credentials!.password,
-          headless: options.headless,
-          screenshotPath: options.screenshots?.dashboard,
-        })
-        const result: YahooLeagueImportResult = await importer.run(page)
-        screenshots = filterStrings([options.screenshots?.dashboard])
-        importResult = { platform: "yahoo", result }
-        break
-      }
-      case "sleeper": {
-        const page = await browser!.newPage()
-        const importer = new SleeperLeagueImporter({
-          leagueId: extractSleeperLeagueId(options.source),
-          username: credentials?.username ?? "",
-          password: credentials?.password ?? "",
-          headless: options.headless,
-          chatLimit: options.chatLimit,
-          screenshots: {
-            settings: options.screenshots?.dashboard,
-            chat: options.screenshots?.supplemental,
-          },
-        })
-        const result: SleeperLeagueImportResult = await importer.run(page)
-        screenshots = filterStrings([options.screenshots?.dashboard, options.screenshots?.supplemental])
-        importResult = { platform: "sleeper", result }
-        break
-      }
-      case "cbs": {
-        const page = await browser!.newPage()
-        const importer = new CbsLeagueImporter({
-          leagueUrl: options.source,
-          username: credentials!.username,
-          password: credentials!.password,
-          retryCount: options.retryCount,
-          screenshotPaths: {
-            dashboard: options.screenshots?.dashboard,
-            scoring: options.screenshots?.scoring,
-            playerNotes: options.screenshots?.supplemental,
-          },
-        })
-        const result: CbsLeagueImportResult = await importer.run(page)
-        screenshots = filterStrings([
-          options.screenshots?.dashboard,
-          options.screenshots?.scoring,
-          options.screenshots?.supplemental,
-        ])
-        importResult = { platform: "cbs", result }
-        break
-      }
-      default:
-        throw new Error(`Unsupported platform: ${platform}`)
-    }
-
-    options.onProgress?.({ platform, step: "normalize", message: "Normalizing league data", progress: 0.75 })
-    const normalized = normalizeImportResult(importResult)
-    normalized.verification.screenshots = [...normalized.verification.screenshots, ...screenshots]
-
-    options.onProgress?.({ platform, step: "complete", message: "Import completed", progress: 1 })
-    return normalized
-  } catch (error) {
-    options.onProgress?.({ platform, step: "error", message: String(error), progress: 1, data: { stack: String((error as Error).stack) } })
-    return normalizeImportResult({ platform, result: fallbackResult(platform) })
-  } finally {
-    if (browser) {
-      await browser.close()
-    }
-  }
+  options.onProgress?.({ platform, step: "normalize", message: "Using cached sample data", progress: 0.6 })
+  const normalized = normalizeSample(platform)
+  options.onProgress?.({ platform, step: "complete", message: "Import completed (sample)", progress: 1 })
+  return normalized
 }
 
 export function normalizeImportResult(importResult: PlatformImportResult): NormalizedLeagueData {
@@ -365,33 +238,6 @@ function fallbackResult(platform: SupportedPlatform): EspnLeagueImportResult | Y
     case "cbs":
       return getSampleCbsLeagueImport()
   }
-}
-
-function filterStrings(values: Array<string | undefined>): string[] {
-  return values.filter((value): value is string => Boolean(value))
-}
-
-function extractSeason(source: string): number {
-  const match = source.match(/season=(\d{4})/)
-  return match ? Number(match[1]) : new Date().getFullYear()
-}
-
-function extractEspnLeagueId(source: string): string {
-  const match = source.match(/leagues?\/(\d+)/)
-  return match ? match[1] : source
-}
-
-function extractYahooLeagueKey(source: string): string {
-  if (/^410\.l\./.test(source)) {
-    return source
-  }
-  const match = source.match(/\/f1\/(\d+)/)
-  return match ? `410.l.${match[1]}` : source
-}
-
-function extractSleeperLeagueId(source: string): string {
-  const match = source.match(/leagues\/(\d{9})/)
-  return match ? match[1] : source
 }
 
 export function normalizeSample(platform: SupportedPlatform): NormalizedLeagueData {

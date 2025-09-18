@@ -41,7 +41,6 @@
     "@types/lodash": "^4.17.20",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
-    "playwright-core": "^1.50.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "d3": "^7.9.0",
