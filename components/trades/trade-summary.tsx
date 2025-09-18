@@ -23,6 +23,10 @@ export function TradeSummary({ result }: { result: TradeAnalysisResult }) {
             ))}
           </ul>
         </div>
+        <div className="grid gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-xs uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Fairness reasoning</p>
+          <p>{result.fairness.reasoning}</p>
+        </div>
         <div className="grid gap-3">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Confidence</p>
           <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
@@ -32,7 +36,47 @@ export function TradeSummary({ result }: { result: TradeAnalysisResult }) {
             <span>{result.recommendation.accept ? "Lean accept" : "Lean decline"}</span>
           </div>
         </div>
+        <div className="grid gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-xs uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Standings impact</p>
+          <div className="grid gap-2">
+            <StandingsLine
+              label="Team A"
+              weekly={result.teamA.impact.weeklyPointDelta}
+              wins={result.teamA.impact.projectedRecordDelta}
+              playoff={result.teamA.impact.playoffProbabilityDelta}
+            />
+            <StandingsLine
+              label="Team B"
+              weekly={result.teamB.impact.weeklyPointDelta}
+              wins={result.teamB.impact.projectedRecordDelta}
+              playoff={result.teamB.impact.playoffProbabilityDelta}
+            />
+          </div>
+        </div>
       </GlassCard.Content>
     </GlassCard>
+  )
+}
+
+function StandingsLine({
+  label,
+  weekly,
+  wins,
+  playoff,
+}: {
+  label: string
+  weekly: number
+  wins: number
+  playoff: number
+}) {
+  const formatSigned = (value: number, digits: number) => `${value >= 0 ? "+" : ""}${value.toFixed(digits)}`
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="text-xs uppercase tracking-[0.32em] text-slate-500 dark:text-slate-400">{label}</span>
+      <span>Weekly {formatSigned(weekly, 2)} pts</span>
+      <span>Wins {formatSigned(wins, 2)}</span>
+      <span>Playoff {formatSigned(playoff * 100, 1)}%</span>
+    </div>
   )
 }

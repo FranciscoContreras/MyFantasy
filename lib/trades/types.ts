@@ -24,6 +24,21 @@ export interface TradePackage {
   playersReceived: TradePlayer[]
 }
 
+export interface TradePlayerValuation {
+  id: string
+  name: string
+  position: string
+  team: string
+  restOfSeasonProjection: number
+  adjustedPerGame: number
+  restOfSeasonTotal: number
+  floor: number
+  ceiling: number
+  riskScore: number
+  scheduleScore: number
+  byeWeeksRemaining?: number
+}
+
 export interface TradeAnalyzerInput {
   season: number
   week: number
@@ -44,6 +59,7 @@ export interface TradeValueBreakdown {
   ceiling: number
   riskAdjustment: number
   scheduleAdjustment: number
+  players: TradePlayerValuation[]
 }
 
 export interface TradeImpactSummary {

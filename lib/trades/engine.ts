@@ -1,5 +1,14 @@
 import { clamp } from "@/lib/analysis/utils"
-import type { TradeAnalyzerInput, TradeAnalysisResult, TradeFairness, TradeImpactSummary, TradePackage, TradeRecommendation, TradeValueBreakdown } from "@/lib/trades/types"
+import type {
+  TradeAnalyzerInput,
+  TradeAnalysisResult,
+  TradeFairness,
+  TradeImpactSummary,
+  TradePackage,
+  TradeRecommendation,
+  TradeValueBreakdown,
+  TradePlayerValuation,
+} from "@/lib/trades/types"
 
 interface PackageValue {
   outgoing: TradeValueBreakdown
@@ -34,10 +43,12 @@ export class TradeAnalyzer {
     const incoming = this.calculateValue(trade.playersReceived, gamesRemaining)
     const net = incoming.total - outgoing.total
 
-    const rosterNotes = this.buildRosterNotes(trade.playersSent, trade.playersReceived)
+    const rosterNotes = this.buildRosterNotes(trade.playersSent, trade.playersReceived, outgoing, incoming)
     const weeklyPointDelta = incoming.perGame - outgoing.perGame
-    const recordDelta = weeklyPointDelta * 0.08 // heuristic: 0.08 wins per point delta per game
-    const playoffDelta = weeklyPointDelta * 0.015 + (net > 0 ? 0.02 : -0.02)
+    const recordDelta = weeklyPointDelta * gamesRemaining * 0.02
+    const basePlayoff = trade.playoffProbability ?? 0.5
+    const projectedPlayoff = clamp(basePlayoff + recordDelta * 0.05 + weeklyPointDelta * 0.004)
+    const playoffDelta = projectedPlayoff - basePlayoff
 
     const impact: TradeImpactSummary = {
       projectedRecordDelta: Number(recordDelta.toFixed(2)),
@@ -58,6 +69,7 @@ export class TradeAnalyzer {
         ceiling: 0,
         riskAdjustment: 0,
         scheduleAdjustment: 0,
+        players: [],
       }
     }
 
@@ -67,35 +79,62 @@ export class TradeAnalyzer {
     let ceiling = 0
     let riskAggregate = 0
     let scheduleAggregate = 0
+    const playerValuations: TradePlayerValuation[] = []
 
     for (const player of players) {
       const projection = player.restOfSeasonProjection
       const risk = clamp(1 - (player.injuryRisk ?? 0.25))
       const schedule = clamp(player.scheduleDifficulty ?? 0.5)
 
-      const adjProjection = projection * (0.9 + schedule * 0.2) * risk
-      perGame += adjProjection
-      total += adjProjection * gamesRemaining
+      const scheduleMultiplier = 0.9 + schedule * 0.2
+      const adjustedPerGameRaw = projection * scheduleMultiplier
+      const adjustedPerGame = adjustedPerGameRaw * risk
+      const restOfSeasonTotal = adjustedPerGame * gamesRemaining
+      const floorValue = adjustedPerGameRaw * 0.85 * risk
+      const ceilingValue = adjustedPerGameRaw * (1.15 + schedule * 0.05)
 
-      floor += adjProjection * 0.8 * risk
-      ceiling += adjProjection * (1.15 + schedule * 0.1)
+      playerValuations.push({
+        id: player.id,
+        name: player.name,
+        position: player.position,
+        team: player.team,
+        restOfSeasonProjection: Number(projection.toFixed(2)),
+        adjustedPerGame: Number(adjustedPerGame.toFixed(2)),
+        restOfSeasonTotal: Number(restOfSeasonTotal.toFixed(1)),
+        floor: Number(floorValue.toFixed(2)),
+        ceiling: Number(ceilingValue.toFixed(2)),
+        riskScore: Number(risk.toFixed(2)),
+        scheduleScore: Number(schedule.toFixed(2)),
+        byeWeeksRemaining: player.byeWeeksRemaining,
+      })
+
+      perGame += adjustedPerGame
+      total += restOfSeasonTotal
+      floor += floorValue
+      ceiling += ceilingValue
 
       riskAggregate += risk
       scheduleAggregate += schedule
     }
 
-    const count = players.length
+    const count = playerValuations.length
     return {
       total: Number(total.toFixed(1)),
-      perGame: Number((perGame / count).toFixed(2)),
-      floor: Number((floor / count).toFixed(2)),
-      ceiling: Number((ceiling / count).toFixed(2)),
+      perGame: Number(perGame.toFixed(2)),
+      floor: Number(floor.toFixed(2)),
+      ceiling: Number(ceiling.toFixed(2)),
       riskAdjustment: Number((riskAggregate / count).toFixed(2)),
       scheduleAdjustment: Number((scheduleAggregate / count).toFixed(2)),
+      players: playerValuations,
     }
   }
 
-  private buildRosterNotes(outgoing: TradePackage["playersSent"], incoming: TradePackage["playersReceived"]): string[] {
+  private buildRosterNotes(
+    outgoing: TradePackage["playersSent"],
+    incoming: TradePackage["playersReceived"],
+    outgoingValue: TradeValueBreakdown,
+    incomingValue: TradeValueBreakdown,
+  ): string[] {
     const outgoingPositions = outgoing.reduce<Record<string, number>>((acc, player) => {
       acc[player.position] = (acc[player.position] ?? 0) + 1
       return acc
@@ -122,6 +161,21 @@ export class TradeAnalyzer {
       }
     }
 
+    const riskDelta = incomingValue.riskAdjustment - outgoingValue.riskAdjustment
+    if (Math.abs(riskDelta) >= 0.05) {
+      notes.push(riskDelta >= 0 ? "Stability improves (lower injury risk)" : "Adds volatility from injury risk")
+    }
+
+    const scheduleDelta = incomingValue.scheduleAdjustment - outgoingValue.scheduleAdjustment
+    if (Math.abs(scheduleDelta) >= 0.05) {
+      notes.push(scheduleDelta >= 0 ? "Schedule eases rest-of-season" : "Schedule difficulty increases")
+    }
+
+    const ceilingDelta = incomingValue.ceiling - outgoingValue.ceiling
+    if (Math.abs(ceilingDelta) >= 1.5) {
+      notes.push(ceilingDelta >= 0 ? `Upside rises by ${ceilingDelta.toFixed(1)} pts` : `Upside drops by ${Math.abs(ceilingDelta).toFixed(1)} pts`)
+    }
+
     if (!notes.length) {
       notes.push("Depth impact minimal")
     }
@@ -140,7 +194,7 @@ export class TradeAnalyzer {
     if (delta > 0.5) verdict = "tilted-team-a"
     if (delta < -0.5) verdict = "tilted-team-b"
 
-    const reasoning = `Team A net value ${netA.toFixed(1)} vs Team B ${netB.toFixed(1)}. Difference ${delta.toFixed(1)}.`
+    const reasoning = `Team A net value ${netA.toFixed(1)} vs Team B ${netB.toFixed(1)} (Δ ${delta.toFixed(1)}).`
 
     return {
       score,
@@ -165,6 +219,16 @@ export class TradeAnalyzer {
       `Team B net: ${teamB.net.toFixed(1)} pts`,
       `Weekly swing: ${(teamA.impact.weeklyPointDelta - teamB.impact.weeklyPointDelta).toFixed(2)} pts`,
     ]
+
+    const teamARiskDelta = teamA.incoming.riskAdjustment - teamA.outgoing.riskAdjustment
+    if (Math.abs(teamARiskDelta) >= 0.05) {
+      keyFactors.push(`Team A risk profile ${teamARiskDelta >= 0 ? "stabilises" : "weakens"} (${(teamARiskDelta * 100).toFixed(0)}%)`)
+    }
+
+    const teamBScheduleDelta = teamB.incoming.scheduleAdjustment - teamB.outgoing.scheduleAdjustment
+    if (Math.abs(teamBScheduleDelta) >= 0.05) {
+      keyFactors.push(`Team B schedule ${(teamBScheduleDelta >= 0 ? "eases" : "tightens")} ${(Math.abs(teamBScheduleDelta) * 100).toFixed(0)}%`)
+    }
 
     return {
       accept,
