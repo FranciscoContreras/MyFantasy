@@ -21,19 +21,24 @@ interface SearchState {
   salary: number
 }
 
+type ResolvedOptimizerOptions = Required<Omit<OptimizerOptions, "playerExposure">> & {
+  playerExposure: Record<string, number>
+}
+
 export class LineupOptimizer {
   async optimize({ players, constraints, options }: OptimizerInput): Promise<LineupResult[]> {
     if (!constraints.slots.length) {
       return []
     }
 
-    const resolvedOptions: Required<OptimizerOptions> = {
+    const resolvedOptions: ResolvedOptimizerOptions = {
       maxLineups: options?.maxLineups ?? 5,
       maxCandidatesPerSlot: options?.maxCandidatesPerSlot ?? 12,
       riskTolerance: clamp(options?.riskTolerance ?? 0.5),
       allowDuplicatePlayersAcrossLineups: options?.allowDuplicatePlayersAcrossLineups ?? true,
       minFloor: options?.minFloor ?? 0,
       minMean: options?.minMean ?? 0,
+      playerExposure: options?.playerExposure ?? {},
     }
 
     const slotCandidates = this.buildSlotCandidates(players, constraints.slots, resolvedOptions.maxCandidatesPerSlot)
@@ -70,7 +75,7 @@ export class LineupOptimizer {
   private search(
     slotIndex: number,
     constraints: LineupConstraints,
-    options: Required<OptimizerOptions>,
+    options: ResolvedOptimizerOptions,
     slotCandidates: PlayerProjection[][],
     state: SearchState,
     topLineups: LineupResult[],
@@ -106,7 +111,7 @@ export class LineupOptimizer {
         variance,
         rank: 0,
         notes,
-      }, options.maxLineups)
+      }, options.maxLineups, options.playerExposure)
       return
     }
 
@@ -252,19 +257,24 @@ export class LineupOptimizer {
     })
   }
 
-  private insertLineup(lineups: LineupResult[], lineup: LineupResult, maxLineups: number) {
-    lineups.push(lineup)
-    lineups.sort((a, b) => b.score - a.score)
-    if (lineups.length > maxLineups) {
-      lineups.length = maxLineups
+  private insertLineup(
+    lineups: LineupResult[],
+    lineup: LineupResult,
+    maxLineups: number,
+    exposureLimits: Record<string, number>,
+  ) {
+    const candidateLineups = [...lineups, lineup].sort((a, b) => b.score - a.score).slice(0, maxLineups)
+    if (this.violatesExposure(candidateLineups, exposureLimits)) {
+      return
     }
+    lineups.splice(0, lineups.length, ...candidateLineups)
   }
 
   private estimateOptimisticScore(
     nextSlotIndex: number,
     slotCandidates: PlayerProjection[][],
     state: SearchState,
-    options: Required<OptimizerOptions>,
+    options: ResolvedOptimizerOptions,
   ) {
     let optimisticMean = state.totalMean
     let optimisticFloor = state.totalFloor
@@ -299,6 +309,30 @@ export class LineupOptimizer {
     }
     const worst = lineups[lineups.length - 1]
     return optimisticScore <= worst.score
+  }
+
+  private violatesExposure(lineups: LineupResult[], exposureLimits: Record<string, number>) {
+    const limitEntries = Object.entries(exposureLimits)
+    if (!limitEntries.length) {
+      return false
+    }
+    const exposure = this.computeExposures(lineups)
+    return limitEntries.some(([playerId, limit]) => {
+      if (!limit) {
+        return false
+      }
+      return (exposure[playerId] ?? 0) > limit
+    })
+  }
+
+  private computeExposures(lineups: LineupResult[]) {
+    const counts: Record<string, number> = {}
+    lineups.forEach((lineup) => {
+      lineup.players.forEach((player) => {
+        counts[player.playerId] = (counts[player.playerId] ?? 0) + 1
+      })
+    })
+    return counts
   }
 }
 

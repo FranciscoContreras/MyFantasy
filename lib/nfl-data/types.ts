@@ -56,6 +56,9 @@ export interface GameSchedule {
   homeTeamId: string
   awayTeamId: string
   network?: string
+  status?: string
+  statusDetail?: string
+  completed?: boolean
   odds?: {
     spread?: number
     total?: number

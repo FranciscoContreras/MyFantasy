@@ -6,7 +6,7 @@ Task 3.3 introduces a matchup-focused analyzer that synthesizes historical perfo
 
 1. Fetch historical player vs opponent samples (using `NFLDataService` fallbacks).
 2. Derive positional defensive rankings and allowances.
-3. Pull scheme information (placeholder for Playwright MCP scraper).
+3. Pull scheme information (seeded with scheme snapshots; swap in Playwright MCP scraper when ready).
 4. Build game-script projections (pace, pass rate, margin).
 5. Assemble factor scores with impact weighting.
 
@@ -43,6 +43,6 @@ const engine = new MatchupAnalysisEngine(new EspnPlaywrightSource())
 
 ## Next Steps
 
-- Integrate actual scheme intel via MCP (blitz rates, coverage splits).
+- Upgrade scheme intel via MCP (blitz rates, coverage splits) for live updates.
 - Persist matchup analytics for the optimizer to reuse during lineup simulations.
 - Add automated tests comparing projected game scripts against historical pace data.

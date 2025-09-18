@@ -44,6 +44,7 @@ export interface OptimizerOptions {
   allowDuplicatePlayersAcrossLineups?: boolean
   minFloor?: number
   minMean?: number
+  playerExposure?: Record<string, number> // max number of lineups for each player
 }
 
 export interface LineupPlayer {

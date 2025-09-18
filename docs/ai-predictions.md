@@ -49,4 +49,4 @@ Probability buckets represent quick heuristics (`bust`, `solid`, `boom`) while t
 - Replace heuristic probability buckets with true distribution sampling once variance data is available.
 - Persist predictions per week and link them to the optimizer for scenario planning.
 - Add automated evaluation tests comparing predictions to historical outcomes.
-- Integrate outputs from the matchup analysis engine (Task 3.3) to refine game script expectations.
+- Integrate outputs from the matchup analysis engine (Task 3.3) to refine game script expectations. ✅

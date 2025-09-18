@@ -1,30 +1,70 @@
 import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "@/lib/utils"
 
+type AnimatedButtonVariant = "primary" | "secondary" | "ghost"
+
 interface AnimatedButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary"
+  variant?: AnimatedButtonVariant
+  loading?: boolean
+  asChild?: boolean
 }
 
 export const AnimatedButton = React.forwardRef<HTMLButtonElement, AnimatedButtonProps>(
-  ({ className, children, variant = "primary", ...props }, ref) => {
+  ({ className, children, variant = "primary", loading = false, disabled, asChild = false, ...props }, ref) => {
+    const shared = "inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-transform duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2";
+
+    const variants: Record<AnimatedButtonVariant, string> = {
+      primary:
+        "bg-primary text-primary-foreground shadow-[0_20px_45px_rgba(79,70,229,0.25)] hover:bg-[color:var(--primary-hover)]",
+      secondary:
+        "bg-white/85 text-slate-700 border border-white/60 shadow-[0_12px_30px_rgba(148,163,184,0.25)] hover:bg-white",
+      ghost:
+        "bg-transparent text-slate-600 hover:text-slate-900 border border-transparent hover:border-slate-200",
+    }
+
+    if (asChild) {
+      return (
+        <Slot
+          className={cn(
+            "group relative overflow-hidden",
+            shared,
+            variants[variant],
+            "hover:-translate-y-0.5 active:scale-[0.98]",
+            loading ? "cursor-wait opacity-70" : "",
+            className,
+          )}
+          {...props}
+        >
+          {loading ? (
+            <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" aria-hidden />
+          ) : null}
+          <span className={cn("relative z-10", loading ? "opacity-0" : "")}>{children}</span>
+          <span className="pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: "linear-gradient(120deg, rgba(79,70,229,0.2), rgba(14,165,233,0.15))" }} />
+        </Slot>
+      )
+    }
+
     return (
       <button
         ref={ref}
         className={cn(
-          "group relative inline-flex items-center justify-center overflow-hidden rounded-full px-6 py-3 text-sm font-semibold transition-all duration-300",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-          variant === "primary"
-            ? "bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white shadow-[0_20px_45px_-20px_rgba(56,189,248,0.75)] hover:shadow-[0_25px_70px_-25px_rgba(37,99,235,0.75)]"
-            : "bg-white/80 text-slate-900 border border-white/40 backdrop-blur hover:bg-white/90 dark:text-slate-100 dark:bg-slate-900/60 dark:hover:bg-slate-900/80",
+          "group relative overflow-hidden",
+          shared,
+          variants[variant],
+          "hover:-translate-y-0.5 active:scale-[0.98]",
+          loading ? "cursor-wait opacity-70" : "",
           className,
         )}
+        disabled={disabled || loading}
         {...props}
       >
-        <span className="relative z-10 flex items-center gap-2">{children}</span>
-        {variant === "primary" ? (
-          <span className="absolute inset-0 -z-10 bg-gradient-to-r from-sky-400/40 via-blue-500/30 to-indigo-500/40 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
+        {loading ? (
+          <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" aria-hidden />
         ) : null}
+        <span className={cn("relative z-10", loading ? "opacity-0" : "")}>{children}</span>
+        <span className="pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: "linear-gradient(120deg, rgba(79,70,229,0.2), rgba(14,165,233,0.15))" }} />
       </button>
     )
   },

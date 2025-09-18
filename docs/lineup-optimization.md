@@ -38,6 +38,7 @@ Each `PlayerProjection` bundles mean/floor/ceiling points, confidence, and optio
 - **Roster constraints**: salary cap, team limits, minimum teams, and stacking rules for correlations.
 - **Multiple outputs**: returns top `maxLineups` lineups ranked by composite score with per-lineup notes (e.g., high floor/upside).
 - **Pruning & heuristics**: candidates per slot are sorted by mean projection and bounded by `maxCandidatesPerSlot` to keep search tractable.
+- **Exposure limits**: use `playerExposure` to cap how many of the returned lineups can feature a given player (e.g., `{ rb1: 2 }`).
 
 ## Extending
 
@@ -48,5 +49,4 @@ Each `PlayerProjection` bundles mean/floor/ceiling points, confidence, and optio
 ## Next Steps
 
 - Connect matchup analysis outputs to adjust risk weighting dynamically.
-- Allow exposure controls (global and per-player) once users build multiple slates.
 - Integrate optimizer results into dashboard UI with scenario comparison tools.

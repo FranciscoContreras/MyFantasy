@@ -1,4 +1,5 @@
 import { nflDataService } from "@/lib/nfl-data"
+import { findSchemeSnapshot } from "@/lib/nfl-data/scheme-intel"
 import type {
   MatchupAnalysisRequest,
   MatchupDataSource,
@@ -54,12 +55,25 @@ export class DefaultMatchupDataSource implements MatchupDataSource {
   }
 
   async fetchSchemeIntel(teamIds: string[]): Promise<SchemeIntel[]> {
-    return teamIds.map((teamId) => ({
-      teamId,
-      blitzRate: undefined,
-      pressureRate: undefined,
-      notes: "Scheme intel placeholder; integrate Playwright MCP",
-    }))
+    return teamIds.map((teamId) => {
+      const snapshot = findSchemeSnapshot(teamId)
+      if (!snapshot) {
+        return {
+          teamId,
+          blitzRate: undefined,
+          pressureRate: undefined,
+          notes: "Scheme data unavailable yet",
+        }
+      }
+      return {
+        teamId,
+        blitzRate: snapshot.blitzRate,
+        pressureRate: snapshot.pressureRate,
+        manCoverageRate: snapshot.manCoverageRate,
+        zoneCoverageRate: snapshot.zoneCoverageRate,
+        notes: snapshot.notes,
+      }
+    })
   }
 
   async fetchGameScriptData(teamIds: string[], season: number, week: number): Promise<GameScriptData[]> {

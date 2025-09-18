@@ -1,17 +1,28 @@
-import { LandingCTA } from "@/app/components/landing/cta"
-import { LandingFeatures } from "@/app/components/landing/features"
-import { LandingHero } from "@/app/components/landing/hero"
-import { LandingPricing } from "@/app/components/landing/pricing"
-import { LandingTestimonials } from "@/app/components/landing/testimonials"
+import { FinalCTASection } from "@/components/landing/final-cta"
+import { FAQSection } from "@/components/landing/faq"
+import { HeroSection } from "@/components/landing/hero"
+import { HowItWorksSection } from "@/components/landing/how-it-works"
+import { IntegrationsSection } from "@/components/landing/integrations"
+import { LiveProductPeek } from "@/components/landing/live-peek"
+import { OutcomesSection } from "@/components/landing/outcomes"
+import { PricingSection } from "@/components/landing/pricing"
+import { TestimonialsSection } from "@/components/landing/testimonials"
+import { getHomeSpotlight } from "@/lib/landing/get-home-spotlight"
 
-export default function Home() {
+export default async function Home() {
+  const spotlight = await getHomeSpotlight()
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
-      <LandingHero />
-      <LandingFeatures />
-      <LandingTestimonials />
-      <LandingPricing />
-      <LandingCTA />
-    </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <HeroSection spotlight={spotlight} />
+      <OutcomesSection />
+      <HowItWorksSection />
+      <LiveProductPeek spotlight={spotlight} />
+      <IntegrationsSection />
+      <TestimonialsSection />
+      <PricingSection />
+      <FAQSection />
+      <FinalCTASection />
+    </main>
   )
 }

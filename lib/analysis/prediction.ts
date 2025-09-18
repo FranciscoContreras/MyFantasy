@@ -1,6 +1,7 @@
 import * as tf from "@tensorflow/tfjs"
 
 import { AnalysisFactors, PlayerAnalysisResult } from "@/lib/analysis"
+import type { MatchupAnalysisResult } from "@/lib/analysis/matchups"
 import { clamp, roundTo, safeAverage } from "@/lib/analysis/utils"
 
 const FEATURE_ORDER: Array<keyof AnalysisFactors> = [
@@ -33,6 +34,7 @@ export interface PredictionInput {
   analysis?: PlayerAnalysisResult
   position?: string
   samples?: Array<{ points: number; week: number }>
+  matchup?: MatchupAnalysisResult
 }
 
 export interface ProbabilityBucket {
@@ -181,19 +183,26 @@ export class PredictionEngine {
   }
 
   async predict(input: PredictionInput): Promise<PredictionOutput> {
-    const mean = this.model.predictPoints(input.factors, input.baselineProjection)
-    const historicalStd = this.estimateStdDev(input)
+    let mean = this.model.predictPoints(input.factors, input.baselineProjection)
+    const matchupBoost = input.matchup ? clamp(input.matchup.overallScore - 0.5) : 0
+    mean = mean * (1 + matchupBoost * 0.12)
 
-    const floor = Math.max(0, mean - 1.5 * historicalStd)
-    const ceiling = mean + 1.8 * historicalStd
+    const historicalStd = this.estimateStdDev(input)
+    const matchupStd = input.matchup ? clamp(input.matchup.volatility, 0, 1) * 3 : 0
+    const adjustedStd = historicalStd * (0.85 + matchupStd)
+
+    const floor = Math.max(0, mean - 1.5 * adjustedStd)
+    const ceiling = mean + 1.8 * adjustedStd
 
     const factorReliability = input.analysis
       ? safeAverage(Object.values(input.analysis.factors).map((detail) => detail.reliability))
       : safeAverage(Object.values(input.factors))
 
-    const confidence = Math.round(clamp(factorReliability) * 100)
+    const matchupReliability = input.matchup ? clamp(1 - input.matchup.volatility) : factorReliability
+    const blendedReliability = clamp((factorReliability + matchupReliability) / 2)
+    const confidence = Math.round(blendedReliability * 100)
 
-    const distribution = this.buildDistribution(mean, historicalStd)
+    const distribution = this.buildDistribution(mean, adjustedStd)
 
     const insights = await this.insights.generateInsights({
       playerId: input.playerId,
@@ -233,7 +242,9 @@ export class PredictionEngine {
       ? safeAverage(Object.values(input.analysis.factors).map((factor) => factor.reliability))
       : 0.5
 
-    const baseVolatility = 6 - reliability * 2
+    const matchupModifier = input.matchup ? clamp(1 - input.matchup.overallScore) : 0.3
+
+    const baseVolatility = 6 - reliability * 2 + matchupModifier
     return clamp(baseVolatility, 2, 8)
   }
 

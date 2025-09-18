@@ -1,5 +1,6 @@
-import axios, { type AxiosInstance } from "axios"
+import axios from "axios"
 
+import { buildScoreboardUrl, buildTeamUrl } from "@/lib/nfl-data/endpoints"
 import { NFLDataError } from "@/lib/nfl-data/errors"
 import type {
   FetchInjuryReportParams,
@@ -13,37 +14,146 @@ import type {
 } from "@/lib/nfl-data/types"
 
 interface ESPNClientOptions {
-  baseURL?: string
-  apiKey?: string
+  timeoutMs?: number
+}
+
+const TEAMS_URL = buildTeamUrl()
+const PLAYER_STATS_URL = "http://site.api.espn.com/apis/site/v2/sports/football/nfl/athletes"
+const NEWS_URL = "http://site.api.espn.com/apis/site/v2/sports/football/nfl/news"
+
+type RawAthleteResponse = {
+  athlete?: {
+    id?: string | number
+    displayName?: string
+    team?: {
+      abbreviation?: string
+    }
+    position?: {
+      abbreviation?: string
+      name?: string
+    }
+  }
+  splits?: {
+    categories?: Array<{
+      stats?: RawAthleteSplitStat[]
+    }>
+  }
+}
+
+type RawAthleteSplitStat = {
+  type?: string
+  season?: number
+  week?: number
+  appliedTotal?: number
+  opponentAbbreviation?: string
+  opponentShortName?: string
+  stats?: Record<string, number | string | null | undefined>
+}
+
+type RawTeamEntry = {
+  team?: {
+    id?: string | number
+    record?: {
+      items?: Array<{
+        stats?: Array<{
+          name?: string
+          value?: number | string
+        }>
+      }>
+    }
+    teamLeaders?: {
+      defense?: {
+        statistics?: Array<{
+          name?: string
+          value?: number | string
+        }>
+      }
+    }
+    standingSummary?: string
+  }
+}
+
+type RawScoreboardEvent = {
+  id?: string
+  date?: string
+  week?: {
+    number?: number | string
+  } | number | string
+  competitions?: Array<{
+    venue?: {
+      fullName?: string
+    }
+    broadcasts?: Array<{
+      names?: string[]
+    }>
+    odds?: Array<{
+      details?: string
+      overUnder?: number
+      favoriteId?: string
+    }>
+    competitors?: Array<{
+      homeAway?: "home" | "away"
+      team?: {
+        id?: string
+      }
+    }>
+  }>
+  status?: {
+    type?: {
+      completed?: boolean
+      detail?: string
+      shortDetail?: string
+      description?: string
+      name?: string
+    }
+  }
+}
+
+type RawNewsArticle = {
+  type?: string
+  categories?: Array<{
+    description?: string
+  }>
+  headline?: string
+  description?: string
+  published?: string
+  related?: Array<{
+    type?: string
+    id?: string | number
+    teamId?: string | number
+  }>
 }
 
 export class ESPNClient {
-  private client: AxiosInstance
-  private readonly apiKey?: string
+  private readonly timeout: number
 
   constructor(options: ESPNClientOptions = {}) {
-    this.apiKey = options.apiKey ?? process.env.ESPN_API_KEY
-    this.client = axios.create({
-      baseURL: options.baseURL ?? "https://site/api/espn/football",
-      timeout: 10_000,
-      headers: this.apiKey
-        ? {
-            Authorization: `Bearer ${this.apiKey}`,
-          }
-        : undefined,
-    })
+    this.timeout = options.timeoutMs ?? 10_000
   }
 
   async getPlayerStats(params: FetchPlayerStatsParams): Promise<PlayerStat[]> {
-    if (!this.apiKey) {
-      throw new NFLDataError("Missing ESPN_API_KEY", { code: "MISSING_API_KEY" })
-    }
-
     try {
-      const response = await this.client.get<{ items: PlayerStat[] }>("/player-stats", {
-        params,
+      const { season, week, playerIds } = params
+      if (!playerIds?.length) {
+        return []
+      }
+
+      const requests = playerIds.map(async (playerId) => {
+        const url = `${PLAYER_STATS_URL}/${playerId}`
+        const response = await axios.get(url, {
+          timeout: this.timeout,
+          params: {
+            season,
+            region: "us",
+            lang: "en",
+          },
+        })
+
+        return this.mapAthleteToPlayerStat(response.data as RawAthleteResponse, season, week)
       })
-      return response.data.items ?? []
+
+      const stats = await Promise.all(requests)
+      return stats.filter((stat): stat is PlayerStat => Boolean(stat))
     } catch (error) {
       throw new NFLDataError("Failed to fetch player stats", {
         code: "REQUEST_FAILED",
@@ -54,15 +164,20 @@ export class ESPNClient {
   }
 
   async getTeamDefense(params: FetchTeamDefenseParams): Promise<TeamDefenseStat[]> {
-    if (!this.apiKey) {
-      throw new NFLDataError("Missing ESPN_API_KEY", { code: "MISSING_API_KEY" })
-    }
-
     try {
-      const response = await this.client.get<{ items: TeamDefenseStat[] }>("/team-defense", {
-        params,
+      const response = await axios.get(TEAMS_URL, {
+        timeout: this.timeout,
+        params: {
+          lang: "en",
+          region: "us",
+        },
       })
-      return response.data.items ?? []
+
+      const teams = (response.data?.sports?.[0]?.leagues?.[0]?.teams ?? []) as RawTeamEntry[]
+
+      return teams
+        .map((entry) => this.mapTeamToDefense(entry?.team, params.season, params.week))
+        .filter((stat): stat is TeamDefenseStat => Boolean(stat))
     } catch (error) {
       throw new NFLDataError("Failed to fetch team defense stats", {
         code: "REQUEST_FAILED",
@@ -73,15 +188,23 @@ export class ESPNClient {
   }
 
   async getSchedule(params: FetchScheduleParams): Promise<GameSchedule[]> {
-    if (!this.apiKey) {
-      throw new NFLDataError("Missing ESPN_API_KEY", { code: "MISSING_API_KEY" })
-    }
-
     try {
-      const response = await this.client.get<{ items: GameSchedule[] }>("/schedule", {
-        params,
-      })
-      return response.data.items ?? []
+      const response = await axios.get(
+        buildScoreboardUrl({
+          season: params.season,
+          week: params.week,
+        }),
+        {
+          timeout: this.timeout,
+          params: {
+            lang: "en",
+            region: "us",
+          },
+        },
+      )
+
+      const events = (response.data?.events ?? []) as RawScoreboardEvent[]
+      return events.map((event) => this.mapEventToSchedule(event, params.season))
     } catch (error) {
       throw new NFLDataError("Failed to fetch schedule", {
         code: "REQUEST_FAILED",
@@ -92,15 +215,17 @@ export class ESPNClient {
   }
 
   async getInjuryReports(params: FetchInjuryReportParams): Promise<InjuryReport[]> {
-    if (!this.apiKey) {
-      throw new NFLDataError("Missing ESPN_API_KEY", { code: "MISSING_API_KEY" })
-    }
-
     try {
-      const response = await this.client.get<{ items: InjuryReport[] }>("/injuries", {
-        params,
+      const response = await axios.get(NEWS_URL, {
+        timeout: this.timeout,
+        params: {
+          lang: "en",
+          region: "us",
+        },
       })
-      return response.data.items ?? []
+
+      const articles = (response.data?.articles ?? []) as RawNewsArticle[]
+      return this.mapNewsToInjuries(articles, params)
     } catch (error) {
       throw new NFLDataError("Failed to fetch injury reports", {
         code: "REQUEST_FAILED",
@@ -108,5 +233,109 @@ export class ESPNClient {
         meta: params,
       })
     }
+  }
+
+  private mapAthleteToPlayerStat(data: RawAthleteResponse, season: number, week?: number): PlayerStat | null {
+    if (!data) return null
+
+    const athlete = data?.athlete
+    if (!athlete) return null
+
+    const stats = data?.splits?.categories?.flatMap((category) => category?.stats ?? []) ?? []
+    const latestStat = stats.find(
+      (stat) => stat?.type === "week" && stat?.season === season && (!week || stat?.week === week),
+    )
+
+    const points = latestStat?.appliedTotal ?? latestStat?.stats?.fantasyPoints ?? null
+
+    return {
+      playerId: String(athlete.id),
+      name: athlete.displayName,
+      team: athlete.team?.abbreviation ?? "",
+      position: athlete.position?.abbreviation ?? athlete.position?.name ?? "",
+      season,
+      week: latestStat?.week ?? week,
+      points: typeof points === "number" ? points : 0,
+      stats: {
+        opponent: latestStat?.opponentAbbreviation ?? latestStat?.opponentShortName,
+        targets: latestStat?.stats?.receptions ?? latestStat?.stats?.targets,
+        redZoneTargets: latestStat?.stats?.redZoneTargets,
+        receptions: latestStat?.stats?.receptions,
+        rushingAttempts: latestStat?.stats?.rushingAttempts,
+        fantasyPoints: points,
+      },
+      source: "espn",
+    }
+  }
+
+  private mapTeamToDefense(team: RawTeamEntry["team"], season: number, week?: number): TeamDefenseStat | null {
+    if (!team) return null
+
+    const record = team.record?.items?.[0]
+    const stats = team.teamLeaders?.defense?.statistics ?? []
+
+    return {
+      teamId: String(team.id),
+      season,
+      week,
+      rank: team.standingSummary ? Number.parseInt(team.standingSummary, 10) || 0 : 0,
+      pointsAllowed: Number.parseFloat(stats.find((stat) => stat?.name === "pointsAgainstTotal")?.value ?? 0),
+      yardsAllowed: Number.parseFloat(stats.find((stat) => stat?.name === "yardsAllowedTotal")?.value ?? 0),
+      turnovers: Number.parseFloat(record?.stats?.find((stat) => stat?.name === "turnovers")?.value ?? 0),
+      source: "espn",
+    }
+  }
+
+  private mapEventToSchedule(event: RawScoreboardEvent, season: number): GameSchedule {
+    const competitions = event?.competitions?.[0] ?? {}
+    const competitors = competitions?.competitors ?? []
+    const homeTeam = competitors.find((comp) => comp?.homeAway === "home")
+    const awayTeam = competitors.find((comp) => comp?.homeAway === "away")
+
+    return {
+      gameId: event?.id ?? "",
+      season,
+      week: Number.parseInt(
+        typeof event?.week === "object" ? event.week?.number ?? "" : (event?.week as string | number | undefined) ?? "",
+        10,
+      ) || 0,
+      startTime: event?.date,
+      stadium: competitions?.venue?.fullName ?? "",
+      homeTeamId: homeTeam?.team?.id ?? "",
+      awayTeamId: awayTeam?.team?.id ?? "",
+      network: competitions?.broadcasts?.[0]?.names?.[0],
+      status: event?.status?.type?.description ?? event?.status?.type?.name,
+      statusDetail: event?.status?.type?.detail ?? event?.status?.type?.shortDetail,
+      completed: Boolean(event?.status?.type?.completed),
+      odds: {
+        spread: competitions?.odds?.[0]?.details,
+        total: competitions?.odds?.[0]?.overUnder,
+        favoriteTeamId: competitions?.odds?.[0]?.favoriteId,
+      },
+    }
+  }
+
+  private mapNewsToInjuries(articles: RawNewsArticle[], params: FetchInjuryReportParams): InjuryReport[] {
+    const relevantTeams = params.teamIds?.map(String)
+
+    return articles
+      .filter((article) => article?.type === "injury")
+      .flatMap((article) => {
+        const related = article?.related ?? []
+        return related
+          .filter((item) => item?.type === "athlete")
+          .map((item) => ({
+            playerId: String(item?.id ?? ""),
+            teamId: String(item?.teamId ?? ""),
+            status: article?.categories?.[0]?.description ?? "",
+            designation: article?.headline ?? undefined,
+            description: article?.description,
+            updatedAt: article?.published ?? new Date().toISOString(),
+            source: "espn",
+          }))
+      })
+      .filter((report: InjuryReport) =>
+        relevantTeams ? relevantTeams.includes(report.teamId) : Boolean(report.playerId),
+      )
   }
 }

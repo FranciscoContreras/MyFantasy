@@ -374,7 +374,7 @@ Team roster interface using MCP components:
 // - Player quick actions menu
 ```
 
-### Task 5.3: Create League Settings Page (with shadcn MCP)
+### Task 5.3: Create League Settings Page 
 Customizable configuration with MCP forms:
 ```typescript
 // Use shadcn Form components via MCP:
