@@ -63,7 +63,7 @@ function normalizeEspn(result: EspnLeagueImportResult): NormalizedLeagueData {
         id: player.id,
         name: player.fullName,
         position: player.position,
-        team: player.team,
+        team: player.proTeam,
         slot: player.lineupSlot,
         status: player.injuryStatus,
         projectedPoints: player.projectedPoints,
