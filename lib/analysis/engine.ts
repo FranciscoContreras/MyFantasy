@@ -48,6 +48,16 @@ const DEFAULT_FACTOR_DESCRIPTION: Record<AnalysisMetric, string> = {
   weatherImpact: "Weather considerations for the upcoming game",
 }
 
+const FACTOR_LABELS: Record<AnalysisMetric, string> = {
+  historicalPerformance: "Historical performance",
+  matchupDifficulty: "Matchup difficulty",
+  defensiveSchemeImpact: "Defensive scheme impact",
+  coordinatorTendencies: "Coordinator tendencies",
+  recentForm: "Recent form",
+  injuryImpact: "Injury outlook",
+  weatherImpact: "Weather impact",
+}
+
 export class PlayerAnalysisEngine {
   constructor(private readonly dataService: NFLDataService = nflDataService) {}
 
@@ -297,12 +307,31 @@ export class PlayerAnalysisEngine {
     const notes: string[] = []
     Object.entries(results).forEach(([metric, detail]) => {
       if ((detail.reliability ?? 0.5) < 0.4) {
-        notes.push(`Limited data for ${metric}`)
+        notes.push(`Limited data for ${FACTOR_LABELS[metric as AnalysisMetric]}`)
       }
       if (detail.note) {
         notes.push(detail.note)
       }
     })
+
+    if (notes.length === 0) {
+      const sorted = Object.entries(results).sort(([, a], [, b]) => (b.score ?? 0) - (a.score ?? 0))
+      const top = sorted[0]
+      const bottom = sorted[sorted.length - 1]
+
+      if (top) {
+        const [metric, detail] = top
+        const description = detail.description ?? DEFAULT_FACTOR_DESCRIPTION[metric as AnalysisMetric]
+        notes.push(`Strength: ${FACTOR_LABELS[metric as AnalysisMetric]} — ${description}`)
+      }
+
+      if (bottom && bottom[0] !== top?.[0]) {
+        const [metric, detail] = bottom
+        const description = detail.description ?? DEFAULT_FACTOR_DESCRIPTION[metric as AnalysisMetric]
+        notes.push(`Watch: ${FACTOR_LABELS[metric as AnalysisMetric]} — ${description}`)
+      }
+    }
+
     return notes
   }
 
