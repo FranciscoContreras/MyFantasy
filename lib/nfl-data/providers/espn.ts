@@ -24,6 +24,7 @@ type RawAthleteResponse = {
   athlete?: {
     id?: string | number
     displayName?: string
+    fullName?: string
     team?: {
       abbreviation?: string
     }
