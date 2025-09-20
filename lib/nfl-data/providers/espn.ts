@@ -279,9 +279,9 @@ export class ESPNClient {
       season,
       week,
       rank: team.standingSummary ? Number.parseInt(team.standingSummary, 10) || 0 : 0,
-      pointsAllowed: Number.parseFloat(stats.find((stat) => stat?.name === "pointsAgainstTotal")?.value ?? 0),
-      yardsAllowed: Number.parseFloat(stats.find((stat) => stat?.name === "yardsAllowedTotal")?.value ?? 0),
-      turnovers: Number.parseFloat(record?.stats?.find((stat) => stat?.name === "turnovers")?.value ?? 0),
+      pointsAllowed: Number(stats.find((stat) => stat?.name === "pointsAgainstTotal")?.value ?? 0),
+      yardsAllowed: Number(stats.find((stat) => stat?.name === "yardsAllowedTotal")?.value ?? 0),
+      turnovers: Number(record?.stats?.find((stat) => stat?.name === "turnovers")?.value ?? 0),
       source: "espn",
     }
   }
