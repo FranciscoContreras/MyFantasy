@@ -291,27 +291,61 @@ export class ESPNClient {
     const competitors = competitions?.competitors ?? []
     const homeTeam = competitors.find((comp) => comp?.homeAway === "home")
     const awayTeam = competitors.find((comp) => comp?.homeAway === "away")
+    const oddsEntry = competitions?.odds?.[0]
+
+    const parsedSpread = (() => {
+      if (typeof oddsEntry?.details === "number") {
+        return oddsEntry.details
+      }
+
+      if (typeof oddsEntry?.details === "string" && oddsEntry.details.trim().length > 0) {
+        const numeric = Number.parseFloat(oddsEntry.details.replace(/[^0-9+\-\.]+/g, ""))
+        return Number.isNaN(numeric) ? undefined : numeric
+      }
+
+      return undefined
+    })()
+
+    const parsedTotal = (() => {
+      if (typeof oddsEntry?.overUnder === "number") {
+        return oddsEntry.overUnder
+      }
+
+      if (typeof oddsEntry?.overUnder === "string") {
+        const numeric = Number.parseFloat(oddsEntry.overUnder)
+        return Number.isNaN(numeric) ? undefined : numeric
+      }
+
+      return undefined
+    })()
+
+    const favoriteTeamId = oddsEntry?.favoriteId != null ? String(oddsEntry.favoriteId) : undefined
 
     return {
       gameId: event?.id ?? "",
       season,
       week: Number.parseInt(
-        typeof event?.week === "object" ? event.week?.number ?? "" : (event?.week as string | number | undefined) ?? "",
+        String(
+          typeof event?.week === "object" ? event.week?.number ?? "" : (event?.week as string | number | undefined) ?? "",
+        ),
         10,
       ) || 0,
-      startTime: event?.date,
+      startTime: event?.date ?? "",
       stadium: competitions?.venue?.fullName ?? "",
-      homeTeamId: homeTeam?.team?.id ?? "",
-      awayTeamId: awayTeam?.team?.id ?? "",
+      homeTeamId: homeTeam?.team?.id != null ? String(homeTeam.team.id) : "",
+      awayTeamId: awayTeam?.team?.id != null ? String(awayTeam.team.id) : "",
       network: competitions?.broadcasts?.[0]?.names?.[0],
       status: event?.status?.type?.description ?? event?.status?.type?.name,
       statusDetail: event?.status?.type?.detail ?? event?.status?.type?.shortDetail,
       completed: Boolean(event?.status?.type?.completed),
-      odds: {
-        spread: competitions?.odds?.[0]?.details,
-        total: competitions?.odds?.[0]?.overUnder,
-        favoriteTeamId: competitions?.odds?.[0]?.favoriteId,
-      },
+      odds:
+        oddsEntry || parsedSpread != null || parsedTotal != null || favoriteTeamId
+          ? {
+              spread: parsedSpread,
+              total: parsedTotal,
+              favoriteTeamId,
+            }
+          : undefined,
     }
   }
 

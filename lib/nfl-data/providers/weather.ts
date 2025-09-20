@@ -7,8 +7,12 @@ export class WeatherClient {
 
   async getWeather(params: FetchWeatherParams): Promise<WeatherReport[]> {
     try {
+      const queryParams = {
+        gameIds: params.gameIds.join(","),
+      }
+
       const data = await fetchJson<{ items: WeatherReport[] }>(new URL("/nfl", this.options.baseURL ?? "https://site/api/weather"), {
-        params,
+        params: queryParams,
         timeoutMs: this.options.timeoutMs ?? 10_000,
       })
       return data.items ?? []
