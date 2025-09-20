@@ -1,14 +1,15 @@
 if (typeof window === "undefined") {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const util = require("util") as { isNullOrUndefined?: (value: unknown) => boolean }
-    if (typeof util.isNullOrUndefined !== "function") {
-      util.isNullOrUndefined = (value: unknown) => value === null || value === undefined
+  const consoleWithFlag = console as typeof console & { _tfjsWarningSuppressed?: boolean }
+  if (!consoleWithFlag._tfjsWarningSuppressed) {
+    const originalWarn = console.warn.bind(console)
+    console.warn = (...args: unknown[]) => {
+      const [message] = args
+      if (typeof message === "string" && message.includes("looks like you are running TensorFlow.js in Node.js")) {
+        return
+      }
+      originalWarn(...args)
     }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require("@tensorflow/tfjs-node")
-  } catch (error) {
-    console.warn("[TensorflowPredictionModel] tfjs-node not available", error)
+    consoleWithFlag._tfjsWarningSuppressed = true
   }
 }
 
