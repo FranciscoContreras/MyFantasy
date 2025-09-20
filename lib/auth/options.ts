@@ -72,6 +72,8 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
   },
+  // @ts-expect-error: trustHost is supported in runtime NextAuth options
+  trustHost: true,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
