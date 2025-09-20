@@ -1,3 +1,17 @@
+if (typeof window === "undefined") {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const util = require("util") as { isNullOrUndefined?: (value: unknown) => boolean }
+    if (typeof util.isNullOrUndefined !== "function") {
+      util.isNullOrUndefined = (value: unknown) => value === null || value === undefined
+    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("@tensorflow/tfjs-node")
+  } catch (error) {
+    console.warn("[TensorflowPredictionModel] tfjs-node not available", error)
+  }
+}
+
 import * as tf from "@tensorflow/tfjs"
 
 import { AnalysisFactors, PlayerAnalysisResult } from "@/lib/analysis"

@@ -27,14 +27,17 @@ export const metadata: Metadata = {
   },
   description: "Cross-platform fantasy football intelligence, matchup analysis, and automated league workflows.",
   manifest: "/manifest.webmanifest",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
-  ],
   icons: {
     icon: [{ url: "/window.svg", type: "image/svg+xml" }],
     apple: "/window.svg",
   },
+}
+
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
 }
 
 export default function RootLayout({
