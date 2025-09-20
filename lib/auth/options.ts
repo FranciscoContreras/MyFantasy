@@ -7,12 +7,28 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { verifyPassword } from "@/lib/auth/password"
 
+const authSecret =
+  process.env.NEXTAUTH_SECRET ??
+  process.env.CLIENT_KEY ??
+  process.env.AUTH_SECRET ??
+  process.env.JWT_SECRET ??
+  process.env.SECRET
+
+if (!authSecret) {
+  const hint =
+    process.env.NODE_ENV === "production"
+      ? "Set NEXTAUTH_SECRET (or CLIENT_KEY) in your environment variables."
+      : "Set NEXTAUTH_SECRET in .env.local."
+  throw new Error(`[auth] Missing NextAuth secret. ${hint}`)
+}
+
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 })
 
 export const authOptions: NextAuthOptions = {
+  secret: authSecret,
   session: {
     strategy: "jwt",
   },
